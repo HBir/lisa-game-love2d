@@ -2,6 +2,7 @@
 local Camera = require("camera")
 local World = require("world")
 local Player = require("player")
+local Chicken = require("chicken")  -- Import the chicken NPC
 
 local Game = {}
 Game.__index = Game
@@ -27,6 +28,9 @@ function Game:new()
     -- Block placement rate control
     self.blockPlacementCooldown = 0
     self.blockPlacementRate = 0.1 -- seconds between block placements
+
+    -- NPC management
+    self.npcs = {}  -- Table to store all NPCs
 
     return self
 end
@@ -75,8 +79,54 @@ function Game:load()
     self.camera = Camera:new(self.width, self.height, 1) -- Use scale factor of 1 instead of world.tileSize
     self.camera:follow(self.player)
 
+    -- Create some chickens in the world
+    self:spawnInitialNPCs()
+
     -- Game state
     self.paused = false
+end
+
+-- Function to spawn initial NPCs in the world
+function Game:spawnInitialNPCs()
+    -- Spawn a few chickens in different areas of the world
+    -- We'll place them near the surface on solid ground
+
+    -- First, spawn a chicken near the player
+    local playerX = self.player.x
+    local groundY = self:findGroundLevel(playerX + 100) -- 100 pixels to the right of player
+
+    if groundY then
+        local chicken = Chicken:new(self.world, playerX + 100, groundY - 8)
+        table.insert(self.npcs, chicken)
+    end
+
+    -- Spawn a few more chickens at different locations
+    local spawnPoints = {
+        {x = playerX - 200, offset = 0},
+        {x = playerX + 300, offset = 0},
+        {x = playerX - 400, offset = 0}
+    }
+
+    for _, point in ipairs(spawnPoints) do
+        local groundY = self:findGroundLevel(point.x)
+        if groundY then
+            local chicken = Chicken:new(self.world, point.x, groundY - 8)
+            table.insert(self.npcs, chicken)
+        end
+    end
+end
+
+-- Helper function to find ground level at a specific x coordinate
+function Game:findGroundLevel(x)
+    for y = 1, self.world.height do
+        local worldY = y * self.world.tileSize
+        if self.world:isSolid(x, worldY) then
+            return worldY
+        end
+    end
+
+    -- If no ground found, return nil
+    return nil
 end
 
 function Game:initParticleSystems()
@@ -254,6 +304,9 @@ function Game:update(dt)
     -- Update the camera to follow the player
     self.camera:update(dt)
 
+    -- Update all NPCs
+    self:updateNPCs(dt)
+
     -- Update dust particles
     self:updateDustParticles(dt)
 
@@ -306,6 +359,16 @@ function Game:update(dt)
 
             -- Set cooldown to prevent too frequent block operations
             self.blockPlacementCooldown = self.blockPlacementRate
+        end
+    end
+end
+
+-- Function to update all NPCs
+function Game:updateNPCs(dt)
+    for i, npc in ipairs(self.npcs) do
+        -- Only update NPCs that are visible on screen (optimization)
+        if npc:isVisible(self.camera) then
+            npc:update(dt)
         end
     end
 end
@@ -496,6 +559,9 @@ function Game:draw()
         love.graphics.draw(particleSystem.system, 0, 0)
     end
 
+    -- Draw NPCs (behind or in front of player based on position)
+    self:drawNPCs()
+
     -- Draw the player
     self.player:draw()
 
@@ -556,6 +622,16 @@ function Game:draw()
 
     -- Draw the UI on top (fixed position, not affected by camera)
     self:drawUI()
+end
+
+-- Function to draw all NPCs
+function Game:drawNPCs()
+    for _, npc in ipairs(self.npcs) do
+        -- Only draw NPCs that are visible on screen (optimization)
+        if npc:isVisible(self.camera) then
+            npc:draw()
+        end
+    end
 end
 
 function Game:drawUI()
