@@ -44,6 +44,9 @@ function Game:load()
     -- Load background image
     self.backgroundImage = love.graphics.newImage("assets/Tiles/Assets/Background_2.png")
 
+    -- Create dust particle system
+    self:initParticleSystems()
+
     -- Initialize the world
     self.world = World:new(128, 128, 16) -- width, height, tile size
     self.world:generate()
@@ -76,6 +79,42 @@ function Game:load()
     self.paused = false
 end
 
+function Game:initParticleSystems()
+    -- Create dust particle system with fewer max particles
+    self.dustParticles = love.graphics.newParticleSystem(love.graphics.newCanvas(6, 6), 50)  -- Larger canvas, fewer max particles
+
+    -- Draw a simple dust particle on the canvas (larger)
+    love.graphics.setCanvas(self.dustParticles:getTexture())
+    love.graphics.setColor(1, 1, 1, 1)
+    love.graphics.rectangle("fill", 0, 0, 6, 6)  -- Larger base particle
+    love.graphics.setCanvas()
+
+    -- Configure the particle system
+    self.dustParticles:setParticleLifetime(0.5, 1.2)  -- Longer lifetime for larger particles
+    self.dustParticles:setEmissionRate(0)  -- Start with no emission, will be set dynamically
+    self.dustParticles:setSizeVariation(0.6) -- More size variation (60%)
+    -- Larger initial sizes and more gradual shrinking
+    self.dustParticles:setSizes(1.5, 1.2, 0.9, 0.5)  -- Particles start larger and shrink as they age
+    self.dustParticles:setColors(
+        0.95, 0.95, 0.9, 0.8,  -- Initial color (more opaque)
+        0.9, 0.9, 0.85, 0.6,   -- Mid-life color
+        0.85, 0.85, 0.8, 0.4,  -- Later color
+        0.8, 0.8, 0.75, 0      -- End color (fade out)
+    )
+    self.dustParticles:setPosition(0, 0)  -- Will be updated based on player position
+    self.dustParticles:setLinearDamping(0.4) -- Slightly less damping for larger particles
+    self.dustParticles:setSpeed(8, 25)     -- Slightly reduced speed for larger particles
+    self.dustParticles:setLinearAcceleration(0, -25, 0, -12)  -- Adjusted for larger particle weight
+    self.dustParticles:setSpread(math.pi/5)  -- Slightly wider spread (36 degrees) for larger particles
+    self.dustParticles:setRelativeRotation(true)
+
+    -- Variables to control dust emission
+    self.lastPlayerX = 0
+    self.lastPlayerY = 0
+    self.dustEmitTimer = 0
+    self.burstEmitTimer = 0  -- Timer for larger, less frequent bursts
+end
+
 function Game:update(dt)
     if self.paused then
         return
@@ -86,6 +125,9 @@ function Game:update(dt)
 
     -- Update the camera to follow the player
     self.camera:update(dt)
+
+    -- Update dust particles
+    self:updateDustParticles(dt)
 
     -- Update mouse position
     self.mouseX, self.mouseY = love.mouse.getPosition()
@@ -122,6 +164,70 @@ function Game:update(dt)
     end
 end
 
+function Game:updateDustParticles(dt)
+    -- Update the particle system
+    self.dustParticles:update(dt)
+
+    -- Only emit dust when running on the ground
+    local isRunning = self.player.vx ~= 0 and self.player.onGround
+    local playerMovementState = self.player.animation.state
+
+    if isRunning and playerMovementState == "run" then
+        -- Position particles at the player's feet, slightly behind based on direction
+        local particleX = self.player.x
+        local particleY = self.player.y + self.player.height/2 - 2  -- At the player's feet, slightly higher
+
+        -- Offset particles behind the player based on facing direction
+        if self.player.facing == "right" then
+            particleX = particleX - 10  -- Increased offset for larger particles
+            -- Direction slightly more upward when facing right (left and up)
+            self.dustParticles:setDirection(math.pi * 0.6)  -- More upward component
+        else
+            particleX = particleX + 10  -- Increased offset for larger particles
+            -- Direction slightly more upward when facing left (right and up)
+            self.dustParticles:setDirection(math.pi * 0.4)  -- More upward component
+        end
+
+        -- Position the emitter
+        self.dustParticles:setPosition(particleX, particleY)
+
+        -- Control emission rate based on horizontal speed but at lower rate
+        local speedFactor = math.abs(self.player.vx) / self.player.speed
+        self.dustParticles:setEmissionRate(12 * speedFactor)  -- Reduced emission rate (was 25)
+
+        -- Emit a larger burst when direction changes or player starts moving
+        if (self.lastPlayerX == 0 or (self.player.vx > 0 and self.lastPlayerX < 0) or
+            (self.player.vx < 0 and self.lastPlayerX > 0)) then
+            self.dustParticles:emit(5)  -- Slightly reduced burst (was 8)
+        end
+
+        -- Add less frequent but larger bursts for more dynamic effect
+        self.dustEmitTimer = self.dustEmitTimer + dt
+        if self.dustEmitTimer > 0.4 then  -- Less frequent (was 0.2 seconds)
+            self.dustParticles:emit(2)  -- Fewer particles per burst (was 3)
+            self.dustEmitTimer = 0
+        end
+
+        -- Occasional larger puffs of dust
+        self.burstEmitTimer = self.burstEmitTimer + dt
+        if self.burstEmitTimer > 1.2 then  -- Every 1.2 seconds
+            -- Set temporary larger size for next few particles
+            local originalSizes = {self.dustParticles:getSizes()}
+            self.dustParticles:setSizes(2.2, 1.8, 1.4, 0.8)  -- Temporarily larger
+            self.dustParticles:emit(3)  -- Emit a few big particles
+            self.dustParticles:setSizes(unpack(originalSizes))  -- Restore original sizes
+            self.burstEmitTimer = 0
+        end
+    else
+        -- Stop emitting when not running
+        self.dustParticles:setEmissionRate(0)
+    end
+
+    -- Remember player's velocity for next frame
+    self.lastPlayerX = self.player.vx
+    self.lastPlayerY = self.player.vy
+end
+
 function Game:draw()
     -- Clear screen with default color (will be covered by background)
     love.graphics.clear(0, 0, 0)
@@ -137,6 +243,10 @@ function Game:draw()
 
     -- Draw the world
     self.world:draw(self.camera)
+
+    -- Draw dust particles (behind the player)
+    love.graphics.setColor(1, 1, 1, 1)
+    love.graphics.draw(self.dustParticles, 0, 0)
 
     -- Draw the player
     self.player:draw()
