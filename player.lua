@@ -23,6 +23,7 @@ function Player:new(world, x, y)
     self.onGround = false
     self.facing = "right"
     self.jumpCooldown = 0  -- Add cooldown timer for jumping
+    self.landingTimer = 0  -- Timer for landing animation
 
     -- Building
     self.selectedBlockType = world.BLOCK_DIRT
@@ -58,70 +59,199 @@ function Player:new(world, x, y)
 
     -- Animation state
     self.animation = {
-        state = "idle", -- idle, run, jump, fall
+        state = "idle", -- idle, run, jump, fall, landing
         frame = 1,
         timer = 0,
-        frameTime = 0.2  -- Slowed down slightly for better effect
+        frameTime = 0.15,  -- Made animation slightly faster for smooth walking
+        wasInAir = false   -- Track if player was in the air in previous frame
     }
 
-    -- Load the character spritesheet
-    self.spritesheet = love.graphics.newImage("assets/Characters/DuskBorne-Elf/SpriteSheet/ElfIdle001Sheet.png")
+    -- Load the character spritesheets
+    self.idleSpritesheet = love.graphics.newImage("assets/Characters/Knight_player_1.4/Knight_player/Idle_KG_1.png")
+    self.walkingSpritesheet = love.graphics.newImage("assets/Characters/Knight_player_1.4/Knight_player/Walking_KG_1.png")
+    self.jumpSpritesheet = love.graphics.newImage("assets/Characters/Knight_player_1.4/Knight_player/Jump_KG_1.png")
+    self.fallSpritesheet = love.graphics.newImage("assets/Characters/Knight_player_1.4/Knight_player/Fall_KG_1.png")
+    self.landingSpritesheet = love.graphics.newImage("assets/Characters/Knight_player_1.4/Knight_player/Landing_KG_1.png")
 
     -- Define sprite dimensions and offsets based on the CSS values
-    -- The actual sprite is much larger according to CSS
-    self.spriteWidth = 200
-    self.spriteHeight = 430
-
-    -- From the CSS we can determine the positions of frames
-    -- First idle frame: -680px -530px
-    -- Second idle frame: -2280px -520px
-    -- So the spacing between frames is considerable
-    -- We'll estimate positions for additional frames
+    -- From CSS we have dimensions around 32-33px width and 61-63px height
+    self.spriteWidth = 33
+    self.spriteHeight = 63
 
     -- Create quads for different animations
     self.quads = {
         idle = {},
         run = {},
         jump = {},
-        fall = {}
+        fall = {},
+        landing = {}
     }
 
-    -- Idle animation frames - based on CSS and estimating additional positions
-    -- First frame at position -680px -530px
+    -- Idle animation frames - based on CSS
+    -- First frame at position -33px -3px
     self.quads.idle[1] = love.graphics.newQuad(
-        680, 530,
-        self.spriteWidth, self.spriteHeight,
-        self.spritesheet:getDimensions()
+        33, 1,  -- x, y position in the spritesheet
+        33, 63, -- width, height of the frame
+        self.idleSpritesheet:getDimensions()
     )
 
-    -- Second frame at position -2280px -520px
+    -- Second frame at position -134px -3px
     self.quads.idle[2] = love.graphics.newQuad(
-        2280, 520,
-        self.spriteWidth, self.spriteHeight,
-        self.spritesheet:getDimensions()
+        134, 1,
+        33, 63,
+        self.idleSpritesheet:getDimensions()
     )
 
-    -- Adding more frames by estimating positions based on the pattern seen in the first two frames
-    -- Third frame (estimated position)
+    -- Third frame at position -234px -1px
     self.quads.idle[3] = love.graphics.newQuad(
-        3880, 530,  -- Estimated based on pattern
-        self.spriteWidth, self.spriteHeight,
-        self.spritesheet:getDimensions()
+        234, 1,
+        33, 63,
+        self.idleSpritesheet:getDimensions()
     )
 
-    -- Fourth frame (estimated position)
+    -- Fourth frame - same as third (as per the CSS)
     self.quads.idle[4] = love.graphics.newQuad(
-        5480, 530,  -- Estimated based on pattern
-        self.spriteWidth, self.spriteHeight,
-        self.spritesheet:getDimensions()
+        234, 1,
+        33, 63,
+        self.idleSpritesheet:getDimensions()
     )
 
-    -- For now, we'll use the idle frames for running too
-    self.quads.run = self.quads.idle
+    -- Running/walking animation frames based on CSS for Walking_KG_1.png
+    -- Frame 1 at position -34px 0
+    self.quads.run[1] = love.graphics.newQuad(
+        34, 1,
+        30, 64,
+        self.walkingSpritesheet:getDimensions()
+    )
 
-    -- Jump and fall animations use the first idle frame for now
-    self.quads.jump[1] = self.quads.idle[1]
-    self.quads.fall[1] = self.quads.idle[2]
+    -- Frame 2 at position -134px -2px
+    self.quads.run[2] = love.graphics.newQuad(
+        134, 1,
+        32, 62,
+        self.walkingSpritesheet:getDimensions()
+    )
+
+    -- Frame 3 at position -233px -3px
+    self.quads.run[3] = love.graphics.newQuad(
+        233, 1,
+        36, 61,
+        self.walkingSpritesheet:getDimensions()
+    )
+
+    -- Frame 4 at position -335px 0
+    self.quads.run[4] = love.graphics.newQuad(
+        335, 1,
+        32, 64,
+        self.walkingSpritesheet:getDimensions()
+    )
+
+    -- Frame 5 at position -434px -1px
+    self.quads.run[5] = love.graphics.newQuad(
+        434, 1,
+        31, 63,
+        self.walkingSpritesheet:getDimensions()
+    )
+
+    -- Frame 6 at position -530px -3px
+    self.quads.run[6] = love.graphics.newQuad(
+        530, 1,
+        34, 61,
+        self.walkingSpritesheet:getDimensions()
+    )
+
+    -- Frame 7 at position -633px -2px
+    self.quads.run[7] = love.graphics.newQuad(
+        633, 1,
+        32, 62,
+        self.walkingSpritesheet:getDimensions()
+    )
+
+    -- Jump animation frames for Jump_KG_1.png - assuming similar pattern as other spritesheets
+    -- Frame 1
+    self.quads.jump[1] = love.graphics.newQuad(
+        34, 1,
+        32, 64,
+        self.jumpSpritesheet:getDimensions()
+    )
+
+    -- Frame 2
+    self.quads.jump[2] = love.graphics.newQuad(
+        134, 1,
+        32, 64,
+        self.jumpSpritesheet:getDimensions()
+    )
+
+    -- Frame 3
+    self.quads.jump[3] = love.graphics.newQuad(
+        234, 1,
+        32, 64,
+        self.jumpSpritesheet:getDimensions()
+    )
+
+    -- Frame 4
+    self.quads.jump[4] = love.graphics.newQuad(
+        334, 1,
+        32, 64,
+        self.jumpSpritesheet:getDimensions()
+    )
+
+    -- Frame 5
+    self.quads.jump[5] = love.graphics.newQuad(
+        434, 1,
+        32, 64,
+        self.jumpSpritesheet:getDimensions()
+    )
+
+    -- Frame 6
+    self.quads.jump[6] = love.graphics.newQuad(
+        534, 1,
+        32, 64,
+        self.jumpSpritesheet:getDimensions()
+    )
+
+    -- Fall animation frames for Fall_KG_1.png - 3 frames
+    -- Frame 1
+    self.quads.fall[1] = love.graphics.newQuad(
+        34, 1,
+        32, 64,
+        self.fallSpritesheet:getDimensions()
+    )
+
+    -- Frame 2
+    self.quads.fall[2] = love.graphics.newQuad(
+        134, 1,
+        32, 64,
+        self.fallSpritesheet:getDimensions()
+    )
+
+    -- Frame 3
+    self.quads.fall[3] = love.graphics.newQuad(
+        234, 1,
+        32, 64,
+        self.fallSpritesheet:getDimensions()
+    )
+
+
+    -- Frame 2
+    self.quads.landing[1] = love.graphics.newQuad(
+        134, 1,
+        32, 64,
+        self.landingSpritesheet:getDimensions()
+    )
+
+    -- Frame 3
+    self.quads.landing[2] = love.graphics.newQuad(
+        234, 1,
+        32, 64,
+        self.landingSpritesheet:getDimensions()
+    )
+
+    -- Frame 4
+    self.quads.landing[3] = love.graphics.newQuad(
+        334, 1,
+        32, 64,
+        self.landingSpritesheet:getDimensions()
+    )
 
     return self
 end
@@ -282,18 +412,49 @@ function Player:move(dt)
 end
 
 function Player:updateAnimation(dt)
+    -- Check if we just landed
+    local justLanded = false
+    if self.animation.wasInAir and self.onGround then
+        justLanded = true
+        self.animation.state = "landing"
+        self.animation.frame = 1
+        self.animation.timer = 0
+        self.animation.frameTime = 0.08 -- Faster animation for landing
+        self.landingTimer = 0.32 -- Duration of landing animation (4 frames * 0.08s)
+    end
+
+    -- Update landing timer
+    if self.landingTimer > 0 then
+        self.landingTimer = self.landingTimer - dt
+    end
+
+    -- Track if we were in the air in this frame for next frame's checks
+    self.animation.wasInAir = not self.onGround
+
     -- Update animation state
-    if not self.onGround then
-        if self.vy < 0 then
-            self.animation.state = "jump"
+    if not justLanded then -- Skip if we just started landing animation
+        if not self.onGround then
+            if self.vy < 0 then
+                self.animation.state = "jump"
+                -- Adjust animation speed for jumping to be slightly faster
+                self.animation.frameTime = 0.1
+            else
+                self.animation.state = "fall"
+                -- Set animation speed for falling
+                self.animation.frameTime = 0.12
+            end
         else
-            self.animation.state = "fall"
-        end
-    else
-        if self.vx ~= 0 then
-            self.animation.state = "run"
-        else
-            self.animation.state = "idle"
+            if self.landingTimer > 0 then
+                -- Keep in landing state until landing animation completes
+                self.animation.state = "landing"
+                self.animation.frameTime = 0.08
+            elseif self.vx ~= 0 then
+                self.animation.state = "run"
+                self.animation.frameTime = 0.15
+            else
+                self.animation.state = "idle"
+                self.animation.frameTime = 0.15
+            end
         end
     end
 
@@ -309,9 +470,21 @@ function Player:updateAnimation(dt)
         self.animation.timer = self.animation.timer - self.animation.frameTime
         self.animation.frame = self.animation.frame + 1
 
-        -- Animation loop based on state
+        -- Animation loop or completion handling
         if self.animation.frame > maxFrames then
-            self.animation.frame = 1
+            if self.animation.state == "landing" then
+                -- After landing animation completes, go to idle or run
+                self.animation.frame = 1
+                if self.vx ~= 0 then
+                    self.animation.state = "run"
+                else
+                    self.animation.state = "idle"
+                end
+                self.landingTimer = 0
+            else
+                -- Loop other animations
+                self.animation.frame = 1
+            end
         end
     end
 
@@ -325,10 +498,11 @@ function Player:draw()
     -- Draw player sprite
     love.graphics.setColor(1, 1, 1, 1)
 
-    -- Scale based on facing direction and make the sprite smaller to fit the game
-    local scaleX = 0.12  -- Restored to the larger scale
-    if self.facing == "left" then scaleX = -0.12 end
-    local scaleY = 0.12  -- Scaling y-axis to match
+    -- Scale based on facing direction
+    -- Using a larger scale since the knight sprite is smaller than the previous sprite
+    local scaleX = 1.0  -- Adjust scale for the knight sprite
+    if self.facing == "left" then scaleX = -1.0 end
+    local scaleY = 1.0
 
     -- Ensure we have a valid animation state and frame
     if not self.quads[self.animation.state] then
@@ -343,102 +517,33 @@ function Player:draw()
     -- Get current animation frame
     local quad = self.quads[self.animation.state][self.animation.frame]
 
+    -- Select the correct spritesheet based on the animation state
+    local currentSpritesheet
+    if self.animation.state == "run" then
+        currentSpritesheet = self.walkingSpritesheet
+    elseif self.animation.state == "jump" then
+        currentSpritesheet = self.jumpSpritesheet
+    elseif self.animation.state == "fall" then
+        currentSpritesheet = self.fallSpritesheet
+    elseif self.animation.state == "landing" then
+        currentSpritesheet = self.landingSpritesheet
+    else
+        currentSpritesheet = self.idleSpritesheet
+    end
+
     -- Calculate the origin points (center of character)
     local originX = self.spriteWidth / 2   -- Center of the sprite width
     local originY = self.spriteHeight / 2  -- Center of the sprite height
 
     -- Draw the sprite
     love.graphics.draw(
-        self.spritesheet,
+        currentSpritesheet,
         quad,
         self.x,
         self.y,
         0,  -- rotation
-        scaleX, scaleY,  -- scale x, y (restored to larger size)
+        scaleX, scaleY,  -- scale x, y
         originX, originY  -- origin x, y (center of the sprite)
-    )
-
-    -- Draw debug collision box
-    love.graphics.setColor(1, 0, 0, 0.5)
-    love.graphics.rectangle("line",
-        self.x - self.width / 2,
-        self.y - self.height / 2,
-        self.width,
-        self.height
-    )
-
-    -- Draw ground check points - show where we're checking for ground
-    -- Bottom collision points
-    love.graphics.setColor(0, 1, 0, 1)
-    local feetY = self.y + self.height / 2
-
-    -- Left check point
-    love.graphics.circle("fill", self.x - self.width/2 + 2, feetY, 2)
-
-    -- Center check point
-    love.graphics.circle("fill", self.x, feetY, 2)
-
-    -- Right check point
-    love.graphics.circle("fill", self.x + self.width/2 - 2, feetY, 2)
-
-    -- Enhanced debug info
-    love.graphics.setColor(1, 1, 1, 1)
-    local debugY = self.y - self.height - 10
-    local lineHeight = 15
-
-    -- Ground status
-    local groundText = self.onGround and "On Ground: YES" or "On Ground: NO"
-    love.graphics.print(
-        groundText,
-        self.x - 60,
-        debugY,
-        0,   -- rotation
-        1, 1 -- scale
-    )
-
-    -- Vertical velocity info
-    love.graphics.print(
-        "vY: " .. string.format("%.1f", self.vy),
-        self.x - 60,
-        debugY + lineHeight,
-        0,   -- rotation
-        1, 1 -- scale
-    )
-
-    -- Horizontal velocity info
-    love.graphics.print(
-        "vX: " .. string.format("%.1f", self.vx),
-        self.x - 60,
-        debugY + lineHeight * 2,
-        0,   -- rotation
-        1, 1 -- scale
-    )
-
-    -- Jump cooldown
-    love.graphics.print(
-        "Jump CD: " .. string.format("%.2f", self.jumpCooldown),
-        self.x - 60,
-        debugY + lineHeight * 3,
-        0,   -- rotation
-        1, 1 -- scale
-    )
-
-    -- Animation state
-    love.graphics.print(
-        "State: " .. self.animation.state,
-        self.x - 60,
-        debugY + lineHeight * 4,
-        0,   -- rotation
-        1, 1 -- scale
-    )
-
-    -- Position info
-    love.graphics.print(
-        "Pos: " .. string.format("%.1f, %.1f", self.x, self.y),
-        self.x - 60,
-        debugY + lineHeight * 5,
-        0,   -- rotation
-        1, 1 -- scale
     )
 
     -- Draw block selection notification above player if active
@@ -451,7 +556,7 @@ function Player:draw()
         local textWidth = #self.blockChangeNotification.text * 8 -- Approximate width
         love.graphics.rectangle("fill",
             self.x - textWidth/2 - 5,
-            debugY + lineHeight * 6,
+            self.y - self.height - 10,
             textWidth + 10,
             20)
 
@@ -460,7 +565,7 @@ function Player:draw()
         love.graphics.print(
             self.blockChangeNotification.text,
             self.x - textWidth/2,
-            debugY + lineHeight * 6 + 5)
+            self.y - self.height - 5)
     end
 end
 
