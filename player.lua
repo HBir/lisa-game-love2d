@@ -11,8 +11,8 @@ function Player:new(world, x, y)
     -- Position and size
     self.x = x
     self.y = y
-    self.width = 24
-    self.height = 48
+    self.width = 12
+    self.height = 17
 
     -- Movement properties
     self.speed = 120
@@ -60,47 +60,72 @@ function Player:new(world, x, y)
         state = "idle", -- idle, run, jump, fall
         frame = 1,
         timer = 0,
-        frameTime = 0.1
+        frameTime = 0.15
     }
 
-    -- Load images (placeholder, will use actual princess sprites later)
-    self.images = {
-        idle = love.graphics.newCanvas(self.width, self.height)
+    -- Load the character spritesheet
+    self.spritesheet = love.graphics.newImage("assets/Characters/camelot_ [version 1.0]/guinevere_.png")
+
+    -- Define sprite dimensions and offsets based on the CSS values
+    -- The actual sprite is 12x17 with offsets from the grid
+    local spriteWidth = 12
+    local spriteHeight = 17
+
+    -- Grid dimensions (the total cell size in the spritesheet)
+    local gridWidth = 32
+    local gridHeight = 32
+
+    -- Offsets within the grid cells (from the CSS)
+    local offsetX = 9
+    local offsetY = 11
+
+    -- Create quads for different animations
+    self.quads = {
+        idle = {},
+        run = {},
+        jump = {},
+        fall = {}
     }
 
-    -- Draw a simple princess silhouette on canvas
-    love.graphics.setCanvas(self.images.idle)
-    love.graphics.clear()
+    -- Idle animation (first row)
+    for i = 1, 6 do
+        self.quads.idle[i] = love.graphics.newQuad(
+            offsetX + (i-1) * gridWidth,
+            offsetY,
+            spriteWidth,
+            spriteHeight,
+            self.spritesheet:getDimensions()
+        )
+    end
 
-    -- Set up a simple placeholder drawing
-    -- Head
-    love.graphics.setColor(1, 0.8, 0.8)
-    love.graphics.circle("fill", self.width/2, self.height/5, self.width/3)
+    -- Run animation (second row)
+    for i = 1, 6 do
+        self.quads.run[i] = love.graphics.newQuad(
+            offsetX + (i-1) * gridWidth,
+            offsetY + gridHeight,
+            spriteWidth,
+            spriteHeight,
+            self.spritesheet:getDimensions()
+        )
+    end
 
-    -- Dress/body
-    love.graphics.setColor(1, 0.4, 0.8)
-    love.graphics.polygon("fill",
-        self.width/2, self.height/3,
-        0, self.height,
-        self.width, self.height)
+    -- Jump animation (combination of rows for simplicity)
+    self.quads.jump[1] = love.graphics.newQuad(
+        offsetX,
+        offsetY + gridHeight * 2,
+        spriteWidth,
+        spriteHeight,
+        self.spritesheet:getDimensions()
+    )
 
-    -- Face
-    love.graphics.setColor(0, 0, 0)
-    love.graphics.points(self.width/2 - 2, self.height/5 - 1) -- left eye
-    love.graphics.points(self.width/2 + 2, self.height/5 - 1) -- right eye
-    love.graphics.line(self.width/2 - 1, self.height/5 + 2, self.width/2 + 1, self.height/5 + 2) -- smile
-
-    -- Crown
-    love.graphics.setColor(1, 0.84, 0)
-    love.graphics.polygon("fill",
-        self.width/2 - 5, self.height/5 - 6,
-        self.width/2 - 3, self.height/5 - 10,
-        self.width/2, self.height/5 - 8,
-        self.width/2 + 3, self.height/5 - 10,
-        self.width/2 + 5, self.height/5 - 6)
-
-    love.graphics.setCanvas()
-    love.graphics.setColor(1, 1, 1, 1)
+    -- Fall animation
+    self.quads.fall[1] = love.graphics.newQuad(
+        offsetX + gridWidth,
+        offsetY + gridHeight * 2,
+        spriteWidth,
+        spriteHeight,
+        self.spritesheet:getDimensions()
+    )
 
     return self
 end
@@ -228,16 +253,20 @@ function Player:updateAnimation(dt)
         end
     end
 
+    -- Ensure frame is valid for current animation state
+    local maxFrames = #self.quads[self.animation.state]
+    if self.animation.frame > maxFrames then
+        self.animation.frame = 1
+    end
+
     -- Update animation frame
     self.animation.timer = self.animation.timer + dt
     if self.animation.timer >= self.animation.frameTime then
         self.animation.timer = self.animation.timer - self.animation.frameTime
         self.animation.frame = self.animation.frame + 1
 
-        -- Simple animation loop
-        if self.animation.state == "run" and self.animation.frame > 4 then
-            self.animation.frame = 1
-        elseif self.animation.frame > 1 then
+        -- Animation loop based on state
+        if self.animation.frame > maxFrames then
             self.animation.frame = 1
         end
     end
@@ -253,17 +282,35 @@ function Player:draw()
     love.graphics.setColor(1, 1, 1, 1)
 
     -- Scale based on facing direction
-    local scaleX = 1
+    local scaleX = 1  -- Reduced from 2 to 1 to make character half size
     if self.facing == "left" then scaleX = -1 end
+
+    -- Ensure we have a valid animation state and frame
+    if not self.quads[self.animation.state] then
+        self.animation.state = "idle"
+    end
+
+    local maxFrames = #self.quads[self.animation.state]
+    if self.animation.frame > maxFrames then
+        self.animation.frame = 1
+    end
+
+    -- Get current animation frame
+    local quad = self.quads[self.animation.state][self.animation.frame]
+
+    -- Calculate the origin points (center of character)
+    local originX = 6  -- half of the sprite width (12/2)
+    local originY = 8  -- approximately half of the sprite height (17/2)
 
     -- Draw the sprite
     love.graphics.draw(
-        self.images.idle,
+        self.spritesheet,
+        quad,
         self.x,
         self.y,
         0,  -- rotation
-        scaleX, 1,  -- scale x, y
-        self.width / 2, self.height / 2  -- origin x, y
+        scaleX, 1,  -- scale x, y (reduced from 2 to 1 to make character half size)
+        originX, originY  -- origin x, y (center of the sprite)
     )
 
     -- Draw block selection notification above player if active
