@@ -37,15 +37,33 @@ function World:new(width, height, tileSize)
     -- Block definitions with sprite coordinates
     self.sprites = {
         [World.BLOCK_AIR] = { x = 0, y = 0 },
-        [World.BLOCK_DIRT] = { x = 3, y = 1 },
+
+        [World.BLOCK_DIRT] = { x = 3, y = 0 },
         [World.BLOCK_DIRT .. "_TOP"] = { x = 3, y = 0 }, -- Special grass-topped dirt
-        [World.BLOCK_STONE] = { x = 3, y = 9 },
+        [World.BLOCK_DIRT .. "_TOP_LEFT"] = { x = 2, y = 0 },
+        [World.BLOCK_DIRT .. "_LEFT"] = { x = 1, y = 2 },
+        [World.BLOCK_DIRT .. "_TOP_RIGHT"] = { x = 5, y = 1 },
+        [World.BLOCK_DIRT .. "_RIGHT"] = { x = 5, y = 2 },
+        -- All bottom rows will use 3 1
+        [World.BLOCK_DIRT .. "_MIDDLE"] = { x = 3, y = 1 }, -- Special grass-topped dirt
+        [World.BLOCK_DIRT .. "_BOTTOM_LEFT"] = { x = 3, y = 1 },
+        [World.BLOCK_DIRT .. "_BOTTOM_RIGHT"] = { x = 3, y = 1 },
+        [World.BLOCK_DIRT .. "_BOTTOM"] = { x = 3, y = 1 },
+
+
         [World.BLOCK_WOOD] = { x = 9, y = 18 },
+        [World.BLOCK_WOOD .. "_TOP_LEFT"] = { x = 9, y = 17 },
+        [World.BLOCK_WOOD .. "_LEFT"] = { x = 9, y = 17 },
+        [World.BLOCK_WOOD .. "_BOTTOM_LEFT"] = { x = 9, y = 17 },
+        [World.BLOCK_WOOD .. "_RIGHT"] = { x = 10, y = 17 },
+        [World.BLOCK_WOOD .. "_BOTTOM_RIGHT"] = { x = 10, y = 17 },
+        [World.BLOCK_WOOD .. "_TOP_RIGHT"] = { x = 10, y = 17 },
 
         -- Base leaf sprite
-        [World.BLOCK_LEAVES] = { x = 2, y = 17 },
+        [World.BLOCK_LEAVES] = { x = 3, y = 15 },
 
         -- Leaf variants for auto-tiling
+        [World.BLOCK_LEAVES .. "_MIDDLE"] = { x = 2, y = 17 },
         [World.BLOCK_LEAVES .. "_TOP"] = { x = 3, y = 15 },
         [World.BLOCK_LEAVES .. "_BOTTOM"] = { x = 3, y = 19 },
         [World.BLOCK_LEAVES .. "_LEFT"] = { x = 1, y = 17 },
@@ -56,6 +74,19 @@ function World:new(width, height, tileSize)
         [World.BLOCK_LEAVES .. "_BOTTOM_RIGHT"] = { x = 4, y = 19 },
         [World.BLOCK_LEAVES .. "_TOP_BOTTOM"] = { x = 4, y = 17 },
         [World.BLOCK_LEAVES .. "_LEFT_RIGHT"] = { x = 2, y = 19 },
+
+        -- Stone variants
+        [World.BLOCK_STONE] = { x = 3, y = 8 },
+        [World.BLOCK_STONE .. "_TOP"] = { x = 3, y = 5 },
+        [World.BLOCK_STONE .. "_LEFT"] = { x = 1, y = 7 },
+        [World.BLOCK_STONE .. "_RIGHT"] = { x = 4, y = 9 },
+        [World.BLOCK_STONE .. "_TOP_LEFT"] = { x = 1, y = 6 },
+        [World.BLOCK_STONE .. "_TOP_RIGHT"] = { x = 5, y = 6 },
+        [World.BLOCK_STONE .. "_TOP_BOTTOM"] = { x = 5, y = 9 },
+        [World.BLOCK_STONE .. "_BOTTOM"] = { x = 3, y = 9 },
+        [World.BLOCK_STONE .. "_BOTTOM_LEFT"] = { x = 2, y = 9 },
+        [World.BLOCK_STONE .. "_BOTTOM_RIGHT"] = { x = 4, y = 9 },
+        [World.BLOCK_STONE .. "_LEFT_RIGHT"] = { x = 3, y = 11 },
     }
     self.blocks = {
         [World.BLOCK_AIR] = { name = "Air", color = {0, 0, 0, 0}, solid = false, sprite = nil },
@@ -85,49 +116,42 @@ function World:new(width, height, tileSize)
         },
     }
 
-    -- Create quads for each block type plus the grass-topped dirt variant
+    -- Create quads for each block type plus variants
     self.blockQuads = {}
     for blockType, block in pairs(self.blocks) do
         if block.sprite then
             self.blockQuads[blockType] = love.graphics.newQuad(
                 block.sprite.x * self.tilesetSize,
                 block.sprite.y * self.tilesetSize,
-                self.tilesetSize,
-                self.tilesetSize,
+                self.tilesetSize + 1,
+                self.tilesetSize + 1,
                 self.spriteSheet:getDimensions()
             )
         end
     end
 
-    -- Add the grass-topped dirt quad
-    if self.sprites[World.BLOCK_DIRT .. "_TOP"] then
-        self.blockQuads[World.BLOCK_DIRT .. "_TOP"] = love.graphics.newQuad(
-            self.sprites[World.BLOCK_DIRT .. "_TOP"].x * self.tilesetSize,
-            self.sprites[World.BLOCK_DIRT .. "_TOP"].y * self.tilesetSize,
-            self.tilesetSize,
-            self.tilesetSize,
-            self.spriteSheet:getDimensions()
-        )
-    end
-
-    -- Add quads for each leaf variant
-    for _, variant in ipairs({
+    -- List of all possible variants to check for each block type
+    local variants = {
         "_TOP", "_BOTTOM", "_LEFT", "_RIGHT",
         "_TOP_LEFT", "_TOP_RIGHT", "_BOTTOM_LEFT", "_BOTTOM_RIGHT",
-        "_TOP_BOTTOM", "_LEFT_RIGHT"
-    }) do
-        local leafVariant = World.BLOCK_LEAVES .. variant
-        if self.sprites[leafVariant] then
-            self.blockQuads[leafVariant] = love.graphics.newQuad(
-                self.sprites[leafVariant].x * self.tilesetSize,
-                self.sprites[leafVariant].y * self.tilesetSize,
-                self.tilesetSize,
-                self.tilesetSize,
-                self.spriteSheet:getDimensions()
-            )
-        else
-            -- Use default leaf sprite for variants not explicitly defined
-            self.blockQuads[leafVariant] = self.blockQuads[World.BLOCK_LEAVES]
+        "_TOP_BOTTOM", "_LEFT_RIGHT", "_MIDDLE"
+    }
+
+    -- Add quads for all variants of all block types
+    for blockType, _ in pairs(self.blocks) do
+        if blockType ~= World.BLOCK_AIR then
+            for _, variant in ipairs(variants) do
+                local blockVariant = blockType .. variant
+                if self.sprites[blockVariant] then
+                    self.blockQuads[blockVariant] = love.graphics.newQuad(
+                        self.sprites[blockVariant].x * self.tilesetSize,
+                        self.sprites[blockVariant].y * self.tilesetSize,
+                        self.tilesetSize +1,
+                        self.tilesetSize +1,
+                        self.spriteSheet:getDimensions()
+                    )
+                end
+            end
         end
     end
 
@@ -247,6 +271,114 @@ function World:removeBlock(x, y)
     return false
 end
 
+-- Helper function for determining the appropriate tile variant based on surroundings
+function World:getAutoTileVariant(x, y, blockType)
+    -- If it's air, just return air
+    if blockType == World.BLOCK_AIR then
+        return tostring(blockType)
+    end
+
+    -- For all blocks, check surrounding blocks of the same type
+    local function isSameBlock(checkX, checkY)
+        local block = self:getBlockAt(checkX, checkY)
+
+        -- Special case for leaves - wood connects with leaves
+        if blockType == World.BLOCK_LEAVES then
+            return block == World.BLOCK_LEAVES or block == World.BLOCK_WOOD
+        end
+
+        return block == blockType
+    end
+
+    local hasBlockAbove = isSameBlock(x, y-1)
+    local hasBlockBelow = isSameBlock(x, y+1)
+    local hasBlockLeft = isSameBlock(x-1, y)
+    local hasBlockRight = isSameBlock(x+1, y)
+
+    -- Determine which variant to use based on neighbors
+    local variant
+
+    -- Check for all the different possible configurations
+    if hasBlockAbove and hasBlockBelow and hasBlockLeft and hasBlockRight then
+        -- Block surrounded on all sides - use middle sprite
+        local middleVariant = blockType .. "_MIDDLE"
+        -- Check if middle variant exists in our quads
+        if self.blockQuads[middleVariant] then
+            variant = middleVariant
+        else
+            -- If no middle variant exists, use default
+            variant = tostring(blockType)
+        end
+    else
+        -- In all other cases, prefer the top variant
+        variant = blockType .. "_TOP"
+
+        -- Special cases for corners and edges if they exist
+        if not hasBlockAbove and hasBlockBelow and not hasBlockLeft and hasBlockRight then
+            -- Top-left corner
+            local cornerVariant = blockType .. "_TOP_LEFT"
+            if self.blockQuads[cornerVariant] then
+                variant = cornerVariant
+            end
+        elseif not hasBlockAbove and hasBlockBelow and hasBlockLeft and not hasBlockRight then
+            -- Top-right corner
+            local cornerVariant = blockType .. "_TOP_RIGHT"
+            if self.blockQuads[cornerVariant] then
+                variant = cornerVariant
+            end
+        elseif hasBlockAbove and not hasBlockBelow and not hasBlockLeft and hasBlockRight then
+            -- Bottom-left corner
+            local cornerVariant = blockType .. "_BOTTOM_LEFT"
+            if self.blockQuads[cornerVariant] then
+                variant = cornerVariant
+            end
+        elseif hasBlockAbove and not hasBlockBelow and hasBlockLeft and not hasBlockRight then
+            -- Bottom-right corner
+            local cornerVariant = blockType .. "_BOTTOM_RIGHT"
+            if self.blockQuads[cornerVariant] then
+                variant = cornerVariant
+            end
+        elseif hasBlockAbove and hasBlockBelow and not hasBlockLeft and not hasBlockRight then
+            -- Left-right edge
+            local edgeVariant = blockType .. "_LEFT_RIGHT"
+            if self.blockQuads[edgeVariant] then
+                variant = edgeVariant
+            end
+        elseif not hasBlockAbove and not hasBlockBelow and hasBlockLeft and hasBlockRight then
+            -- Top-bottom edge
+            local edgeVariant = blockType .. "_TOP_BOTTOM"
+            if self.blockQuads[edgeVariant] then
+                variant = edgeVariant
+            end
+        elseif hasBlockAbove and hasBlockBelow and not hasBlockLeft and hasBlockRight then
+            -- Left edge
+            local edgeVariant = blockType .. "_LEFT"
+            if self.blockQuads[edgeVariant] then
+                variant = edgeVariant
+            end
+        elseif hasBlockAbove and hasBlockBelow and hasBlockLeft and not hasBlockRight then
+            -- Right edge
+            local edgeVariant = blockType .. "_RIGHT"
+            if self.blockQuads[edgeVariant] then
+                variant = edgeVariant
+            end
+        elseif hasBlockAbove and not hasBlockBelow and hasBlockLeft and hasBlockRight then
+            -- Bottom edge
+            local edgeVariant = blockType .. "_BOTTOM"
+            if self.blockQuads[edgeVariant] then
+                variant = edgeVariant
+            end
+        end
+
+        -- If the variant quad doesn't exist, fall back to default
+        if not self.blockQuads[variant] then
+            variant = tostring(blockType)
+        end
+    end
+
+    return variant
+end
+
 function World:draw(camera)
     -- Get visible area bounds in tiles
     local x1, y1, x2, y2 = camera:getBounds()
@@ -271,77 +403,9 @@ function World:draw(camera)
                 -- Set color for the block (used for tinting or if no sprite)
                 love.graphics.setColor(1, 1, 1, 1)
 
-                -- Determine which quad to use based on block type and surroundings
-                local quadToUse = nil
-
-                if blockType == World.BLOCK_DIRT then
-                    -- Check if there's no solid block above
-                    local blockAbove = self:getBlockAt(x, y-1)
-                    if blockAbove == World.BLOCK_AIR then
-                        -- Use grass-topped dirt sprite
-                        quadToUse = self.blockQuads[World.BLOCK_DIRT .. "_TOP"]
-                    else
-                        -- Regular dirt sprite
-                        quadToUse = self.blockQuads[blockType]
-                    end
-                elseif blockType == World.BLOCK_LEAVES then
-                    -- Auto-tiling for leaves based on surrounding leaves
-                    -- Count wood blocks as connecting blocks for leaves too
-                    local isConnectingBlock = function(x, y)
-                        local block = self:getBlockAt(x, y)
-                        return block == World.BLOCK_LEAVES or block == World.BLOCK_WOOD
-                    end
-
-                    local hasLeafAbove = isConnectingBlock(x, y-1)
-                    local hasLeafBelow = isConnectingBlock(x, y+1)
-                    local hasLeafLeft = isConnectingBlock(x-1, y)
-                    local hasLeafRight = isConnectingBlock(x+1, y)
-
-                    -- Determine which leaf sprite to use based on neighbors
-                    local leafType = World.BLOCK_LEAVES
-
-                    -- Check for all the different possible configurations
-                    if hasLeafAbove and hasLeafBelow and hasLeafLeft and hasLeafRight then
-                        -- Leaf surrounded by leaves on all sides
-                        leafType = World.BLOCK_LEAVES
-                    elseif not hasLeafAbove and hasLeafBelow and hasLeafLeft and hasLeafRight then
-                        -- Leaf with top exposed
-                        leafType = World.BLOCK_LEAVES .. "_TOP"
-                    elseif hasLeafAbove and not hasLeafBelow and hasLeafLeft and hasLeafRight then
-                        -- Leaf with bottom exposed
-                        leafType = World.BLOCK_LEAVES .. "_BOTTOM"
-                    elseif hasLeafAbove and hasLeafBelow and not hasLeafLeft and hasLeafRight then
-                        -- Leaf with left exposed
-                        leafType = World.BLOCK_LEAVES .. "_LEFT"
-                    elseif hasLeafAbove and hasLeafBelow and hasLeafLeft and not hasLeafRight then
-                        -- Leaf with right exposed
-                        leafType = World.BLOCK_LEAVES .. "_RIGHT"
-                    elseif not hasLeafAbove and not hasLeafBelow and hasLeafLeft and hasLeafRight then
-                        -- Leaf with top and bottom exposed
-                        leafType = World.BLOCK_LEAVES .. "_TOP_BOTTOM"
-                    elseif hasLeafAbove and hasLeafBelow and not hasLeafLeft and not hasLeafRight then
-                        -- Leaf with left and right exposed
-                        leafType = World.BLOCK_LEAVES .. "_LEFT_RIGHT"
-                    elseif not hasLeafAbove and hasLeafBelow and not hasLeafLeft and hasLeafRight then
-                        -- Top-left corner
-                        leafType = World.BLOCK_LEAVES .. "_TOP_LEFT"
-                    elseif not hasLeafAbove and hasLeafBelow and hasLeafLeft and not hasLeafRight then
-                        -- Top-right corner
-                        leafType = World.BLOCK_LEAVES .. "_TOP_RIGHT"
-                    elseif hasLeafAbove and not hasLeafBelow and not hasLeafLeft and hasLeafRight then
-                        -- Bottom-left corner
-                        leafType = World.BLOCK_LEAVES .. "_BOTTOM_LEFT"
-                    elseif hasLeafAbove and not hasLeafBelow and hasLeafLeft and not hasLeafRight then
-                        -- Bottom-right corner
-                        leafType = World.BLOCK_LEAVES .. "_BOTTOM_RIGHT"
-                    end
-
-                    -- Use the determined leaf quad if it exists, or fall back to default
-                    quadToUse = self.blockQuads[leafType] or self.blockQuads[World.BLOCK_LEAVES]
-                else
-                    -- Other block types use their standard quads
-                    quadToUse = self.blockQuads[blockType]
-                end
+                -- Get the variant of the block to use based on auto-tiling
+                local blockVariant = self:getAutoTileVariant(x, y, blockType)
+                local quadToUse = self.blockQuads[blockVariant]
 
                 -- Draw using sprite if available
                 if quadToUse then
@@ -360,14 +424,40 @@ function World:draw(camera)
                         scaleY
                     )
                 else
-                    -- Fallback to colored rectangle if no sprite
-                    local block = self.blocks[blockType]
-                    love.graphics.setColor(block.color)
-                    love.graphics.rectangle("fill", pixelX, pixelY, self.tileSize, self.tileSize)
+                    -- Try again with numeric key if string key failed
+                    if type(blockVariant) == "string" and tonumber(blockVariant) then
+                        quadToUse = self.blockQuads[tonumber(blockVariant)]
+                        if quadToUse then
+                            -- Draw with the quad found by numeric key
+                            love.graphics.draw(
+                                self.spriteSheet,
+                                quadToUse,
+                                pixelX,
+                                pixelY,
+                                0,  -- rotation
+                                self.tileSize / self.tilesetSize,
+                                self.tileSize / self.tilesetSize
+                            )
+                        else
+                            -- Fallback to colored rectangle
+                            local block = self.blocks[blockType]
+                            love.graphics.setColor(block.color)
+                            love.graphics.rectangle("fill", pixelX, pixelY, self.tileSize, self.tileSize)
 
-                    -- Draw outline
-                    love.graphics.setColor(0, 0, 0, 0.3)
-                    love.graphics.rectangle("line", pixelX, pixelY, self.tileSize, self.tileSize)
+                            -- Draw outline
+                            love.graphics.setColor(0, 0, 0, 0.3)
+                            love.graphics.rectangle("line", pixelX, pixelY, self.tileSize, self.tileSize)
+                        end
+                    else
+                        -- Fallback to colored rectangle if still no quad
+                        local block = self.blocks[blockType]
+                        love.graphics.setColor(block.color)
+                        love.graphics.rectangle("fill", pixelX, pixelY, self.tileSize, self.tileSize)
+
+                        -- Draw outline
+                        love.graphics.setColor(0, 0, 0, 0.3)
+                        love.graphics.rectangle("line", pixelX, pixelY, self.tileSize, self.tileSize)
+                    end
                 end
             end
         end
