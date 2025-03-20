@@ -33,6 +33,9 @@ function Game:load()
         minheight = 300
     })
 
+    -- Load background image
+    self.backgroundImage = love.graphics.newImage("assets/Tiles/Assets/Background_2.png")
+
     -- Initialize the world
     self.world = World:new(128, 128, 16) -- width, height, tile size
     self.world:generate()
@@ -81,6 +84,15 @@ function Game:update(dt)
 end
 
 function Game:draw()
+    -- Clear screen with default color (will be covered by background)
+    love.graphics.clear(0, 0, 0)
+
+    -- Draw the background image (tiled to fill the screen)
+    love.graphics.setColor(1, 1, 1)
+    local bgScaleX = self.width / self.backgroundImage:getWidth()
+    local bgScaleY = self.height / self.backgroundImage:getHeight()
+    love.graphics.draw(self.backgroundImage, 0, 0, 0, bgScaleX, bgScaleY)
+
     -- Begin camera transformation
     self.camera:set()
 
@@ -103,9 +115,29 @@ function Game:draw()
             local blockType = self.player.selectedBlockType
             local block = self.world.blocks[blockType]
 
-            -- Draw semi-transparent block
-            love.graphics.setColor(block.color[1], block.color[2], block.color[3], 0.5)
-            love.graphics.rectangle("fill", pixelX, pixelY, self.world.tileSize, self.world.tileSize)
+            if self.world.blockQuads[blockType] then
+                -- Draw semi-transparent sprite
+                love.graphics.setColor(1, 1, 1, 0.5)
+
+                -- Calculate scaling
+                local scaleX = self.world.tileSize / self.world.tilesetSize
+                local scaleY = self.world.tileSize / self.world.tilesetSize
+
+                -- Draw the sprite
+                love.graphics.draw(
+                    self.world.spriteSheet,
+                    self.world.blockQuads[blockType],
+                    pixelX,
+                    pixelY,
+                    0,  -- rotation
+                    scaleX,
+                    scaleY
+                )
+            else
+                -- Fallback to semi-transparent block
+                love.graphics.setColor(block.color[1], block.color[2], block.color[3], 0.5)
+                love.graphics.rectangle("fill", pixelX, pixelY, self.world.tileSize, self.world.tileSize)
+            end
 
             -- Draw outline
             love.graphics.setColor(1, 1, 1, 0.8)
@@ -146,8 +178,27 @@ function Game:drawUI()
     love.graphics.print("Selected Block: " .. block.name, labelX, labelY)
 
     -- Draw block preview
-    love.graphics.setColor(block.color)
-    love.graphics.rectangle("fill", labelX, labelY + 20, blockSize, blockSize)
+    love.graphics.setColor(1, 1, 1, 1)
+    if self.world.blockQuads[blockType] then
+        -- Calculate scaling to match display size
+        local scaleX = blockSize / self.world.tilesetSize
+        local scaleY = blockSize / self.world.tilesetSize
+
+        -- Draw the sprite
+        love.graphics.draw(
+            self.world.spriteSheet,
+            self.world.blockQuads[blockType],
+            labelX,
+            labelY + 20,
+            0,  -- rotation
+            scaleX,
+            scaleY
+        )
+    else
+        -- Fallback to colored rectangle
+        love.graphics.setColor(block.color)
+        love.graphics.rectangle("fill", labelX, labelY + 20, blockSize, blockSize)
+    end
 
     -- Draw block outline
     love.graphics.setColor(0, 0, 0, 0.5)
@@ -185,8 +236,27 @@ function Game:drawBlockHotbar()
         local y = hotbarY
 
         -- Draw the block
-        love.graphics.setColor(block.color)
-        love.graphics.rectangle("fill", x, y, blockSize, blockSize)
+        love.graphics.setColor(1, 1, 1, 1)
+        if self.world.blockQuads[blockTypeId] then
+            -- Calculate scaling to match display size
+            local scaleX = blockSize / self.world.tilesetSize
+            local scaleY = blockSize / self.world.tilesetSize
+
+            -- Draw the sprite
+            love.graphics.draw(
+                self.world.spriteSheet,
+                self.world.blockQuads[blockTypeId],
+                x,
+                y,
+                0,  -- rotation
+                scaleX,
+                scaleY
+            )
+        else
+            -- Fallback to colored rectangle
+            love.graphics.setColor(block.color)
+            love.graphics.rectangle("fill", x, y, blockSize, blockSize)
+        end
 
         -- Draw outline
         if self.player.blockTypeIndex == i then

@@ -28,18 +28,74 @@ function World:new(width, height, tileSize)
         end
     end
 
-    -- Block definitions
+    -- Load sprite sheet
+    self.spriteSheet = love.graphics.newImage("assets/Tiles/Assets/Assets.png")
+
+    -- Based on the 400x400 sprite sheet that looks like it has a grid of tiles
+    -- Let's estimate each tile is about 32x32 pixels
+    self.tilesetSize = 16 -- Size of each tile in the sprite sheet
+
+    -- Block definitions with sprite coordinates
+    self.sprites = {
+        [World.BLOCK_AIR] = { x = 0, y = 0 },
+        [World.BLOCK_DIRT] = { x = 3, y = 1 },
+        [World.BLOCK_GRASS] = { x = 3, y = 0 },
+        [World.BLOCK_STONE] = { x = 3, y = 9 },
+        [World.BLOCK_WOOD] = { x = 9, y = 18 },
+        [World.BLOCK_LEAVES] = { x = 2, y = 18 },
+    }
     self.blocks = {
-        [World.BLOCK_AIR] = { name = "Air", color = {0, 0, 0, 0}, solid = false },
-        [World.BLOCK_DIRT] = { name = "Dirt", color = {0.6, 0.4, 0.2, 1}, solid = true },
-        [World.BLOCK_GRASS] = { name = "Grass", color = {0.2, 0.8, 0.2, 1}, solid = true },
-        [World.BLOCK_STONE] = { name = "Stone", color = {0.5, 0.5, 0.5, 1}, solid = true },
-        [World.BLOCK_WOOD] = { name = "Wood", color = {0.6, 0.3, 0.1, 1}, solid = true },
-        [World.BLOCK_LEAVES] = { name = "Leaves", color = {0.1, 0.6, 0.1, 1}, solid = false },
+        [World.BLOCK_AIR] = { name = "Air", color = {0, 0, 0, 0}, solid = false, sprite = nil },
+        [World.BLOCK_DIRT] = {
+            name = "Dirt",
+            color = {0.6, 0.4, 0.2, 1},
+            solid = true,
+            -- Using the top-left dirt-looking tile
+            sprite = self.sprites[World.BLOCK_DIRT]
+        },
+        [World.BLOCK_GRASS] = {
+            name = "Grass",
+            color = {0.2, 0.8, 0.2, 1},
+            solid = true,
+            -- Using third column (index 2) on first row (index 0) for grass as requested
+            sprite = self.sprites[World.BLOCK_GRASS]
+        },
+        [World.BLOCK_STONE] = {
+            name = "Stone",
+            color = {0.5, 0.5, 0.5, 1},
+            solid = true,
+            -- Using a stone-looking tile from the sprite sheet
+            sprite = self.sprites[World.BLOCK_STONE]
+        },
+        [World.BLOCK_WOOD] = {
+            name = "Wood",
+            color = {0.6, 0.3, 0.1, 1},
+            solid = true,
+            -- Using a wood-looking tile from the sprite sheet
+            sprite = self.sprites[World.BLOCK_WOOD]
+        },
+        [World.BLOCK_LEAVES] = {
+            name = "Leaves",
+            color = {0.1, 0.6, 0.1, 1},
+            solid = false,
+            -- Using a leaf-looking tile from the sprite sheet
+            sprite = self.sprites[World.BLOCK_LEAVES]
+        },
     }
 
-    -- Block images will be loaded here
-    self.blockImages = {}
+    -- Create quads for each block type
+    self.blockQuads = {}
+    for blockType, block in pairs(self.blocks) do
+        if block.sprite then
+            self.blockQuads[blockType] = love.graphics.newQuad(
+                block.sprite.x * self.tilesetSize,
+                block.sprite.y * self.tilesetSize,
+                self.tilesetSize,
+                self.tilesetSize,
+                self.spriteSheet:getDimensions()
+            )
+        end
+    end
 
     return self
 end
@@ -67,7 +123,7 @@ function World:generate()
 
         -- Randomly place trees
         if math.random() < 0.05 then
-            self:generateTree(x, groundHeight + heightOffset - 1)
+            self:generateTree(x, groundHeight + heightOffset)
         end
     end
 end
@@ -173,20 +229,39 @@ function World:draw(camera)
 
             -- Skip air blocks
             if blockType ~= World.BLOCK_AIR then
-                -- Set block color
-                local block = self.blocks[blockType]
-                love.graphics.setColor(block.color)
-
                 -- Calculate position
                 local pixelX = (x - 1) * self.tileSize
                 local pixelY = (y - 1) * self.tileSize
 
-                -- Draw block
-                love.graphics.rectangle("fill", pixelX, pixelY, self.tileSize, self.tileSize)
+                -- Set color for the block (used for tinting or if no sprite)
+                love.graphics.setColor(1, 1, 1, 1)
 
-                -- Draw outline
-                love.graphics.setColor(0, 0, 0, 0.3)
-                love.graphics.rectangle("line", pixelX, pixelY, self.tileSize, self.tileSize)
+                -- Draw using sprite if available
+                if self.blockQuads[blockType] then
+                    -- Calculate scaling to match tile size
+                    local scaleX = self.tileSize / self.tilesetSize
+                    local scaleY = self.tileSize / self.tilesetSize
+
+                    -- Draw the sprite with proper scaling
+                    love.graphics.draw(
+                        self.spriteSheet,
+                        self.blockQuads[blockType],
+                        pixelX,
+                        pixelY,
+                        0,  -- rotation
+                        scaleX,
+                        scaleY
+                    )
+                else
+                    -- Fallback to colored rectangle if no sprite
+                    local block = self.blocks[blockType]
+                    love.graphics.setColor(block.color)
+                    love.graphics.rectangle("fill", pixelX, pixelY, self.tileSize, self.tileSize)
+
+                    -- Draw outline
+                    love.graphics.setColor(0, 0, 0, 0.3)
+                    love.graphics.rectangle("line", pixelX, pixelY, self.tileSize, self.tileSize)
+                end
             end
         end
     end
