@@ -1,0 +1,26 @@
+# LÖVE2D specific
+*.love
+
+# OS specific
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE/Editor folders
+.vs/
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Lua debug files
+*.log
+
+# Build and temp files
+build/
+tmp/
+temp/
+
+# Game save files
+saves/
+*.sav
