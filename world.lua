@@ -7,10 +7,9 @@ World.__index = World
 -- Block types
 World.BLOCK_AIR = 0
 World.BLOCK_DIRT = 1
-World.BLOCK_GRASS = 2
-World.BLOCK_STONE = 3
-World.BLOCK_WOOD = 4
-World.BLOCK_LEAVES = 5
+World.BLOCK_STONE = 2
+World.BLOCK_WOOD = 3
+World.BLOCK_LEAVES = 4
 
 function World:new(width, height, tileSize)
     local self = setmetatable({}, World)
@@ -39,10 +38,24 @@ function World:new(width, height, tileSize)
     self.sprites = {
         [World.BLOCK_AIR] = { x = 0, y = 0 },
         [World.BLOCK_DIRT] = { x = 3, y = 1 },
-        [World.BLOCK_GRASS] = { x = 3, y = 0 },
+        [World.BLOCK_DIRT .. "_TOP"] = { x = 3, y = 0 }, -- Special grass-topped dirt
         [World.BLOCK_STONE] = { x = 3, y = 9 },
         [World.BLOCK_WOOD] = { x = 9, y = 18 },
-        [World.BLOCK_LEAVES] = { x = 2, y = 18 },
+
+        -- Base leaf sprite
+        [World.BLOCK_LEAVES] = { x = 2, y = 17 },
+
+        -- Leaf variants for auto-tiling
+        [World.BLOCK_LEAVES .. "_TOP"] = { x = 3, y = 15 },
+        [World.BLOCK_LEAVES .. "_BOTTOM"] = { x = 3, y = 19 },
+        [World.BLOCK_LEAVES .. "_LEFT"] = { x = 1, y = 17 },
+        [World.BLOCK_LEAVES .. "_RIGHT"] = { x = 5, y = 17 },
+        [World.BLOCK_LEAVES .. "_TOP_LEFT"] = { x = 1, y = 16 },
+        [World.BLOCK_LEAVES .. "_TOP_RIGHT"] = { x = 4, y = 15 },
+        [World.BLOCK_LEAVES .. "_BOTTOM_LEFT"] = { x = 1, y = 18 },
+        [World.BLOCK_LEAVES .. "_BOTTOM_RIGHT"] = { x = 4, y = 19 },
+        [World.BLOCK_LEAVES .. "_TOP_BOTTOM"] = { x = 4, y = 17 },
+        [World.BLOCK_LEAVES .. "_LEFT_RIGHT"] = { x = 2, y = 19 },
     }
     self.blocks = {
         [World.BLOCK_AIR] = { name = "Air", color = {0, 0, 0, 0}, solid = false, sprite = nil },
@@ -50,40 +63,29 @@ function World:new(width, height, tileSize)
             name = "Dirt",
             color = {0.6, 0.4, 0.2, 1},
             solid = true,
-            -- Using the top-left dirt-looking tile
             sprite = self.sprites[World.BLOCK_DIRT]
-        },
-        [World.BLOCK_GRASS] = {
-            name = "Grass",
-            color = {0.2, 0.8, 0.2, 1},
-            solid = true,
-            -- Using third column (index 2) on first row (index 0) for grass as requested
-            sprite = self.sprites[World.BLOCK_GRASS]
         },
         [World.BLOCK_STONE] = {
             name = "Stone",
             color = {0.5, 0.5, 0.5, 1},
             solid = true,
-            -- Using a stone-looking tile from the sprite sheet
             sprite = self.sprites[World.BLOCK_STONE]
         },
         [World.BLOCK_WOOD] = {
             name = "Wood",
             color = {0.6, 0.3, 0.1, 1},
             solid = true,
-            -- Using a wood-looking tile from the sprite sheet
             sprite = self.sprites[World.BLOCK_WOOD]
         },
         [World.BLOCK_LEAVES] = {
             name = "Leaves",
             color = {0.1, 0.6, 0.1, 1},
             solid = false,
-            -- Using a leaf-looking tile from the sprite sheet
             sprite = self.sprites[World.BLOCK_LEAVES]
         },
     }
 
-    -- Create quads for each block type
+    -- Create quads for each block type plus the grass-topped dirt variant
     self.blockQuads = {}
     for blockType, block in pairs(self.blocks) do
         if block.sprite then
@@ -94,6 +96,38 @@ function World:new(width, height, tileSize)
                 self.tilesetSize,
                 self.spriteSheet:getDimensions()
             )
+        end
+    end
+
+    -- Add the grass-topped dirt quad
+    if self.sprites[World.BLOCK_DIRT .. "_TOP"] then
+        self.blockQuads[World.BLOCK_DIRT .. "_TOP"] = love.graphics.newQuad(
+            self.sprites[World.BLOCK_DIRT .. "_TOP"].x * self.tilesetSize,
+            self.sprites[World.BLOCK_DIRT .. "_TOP"].y * self.tilesetSize,
+            self.tilesetSize,
+            self.tilesetSize,
+            self.spriteSheet:getDimensions()
+        )
+    end
+
+    -- Add quads for each leaf variant
+    for _, variant in ipairs({
+        "_TOP", "_BOTTOM", "_LEFT", "_RIGHT",
+        "_TOP_LEFT", "_TOP_RIGHT", "_BOTTOM_LEFT", "_BOTTOM_RIGHT",
+        "_TOP_BOTTOM", "_LEFT_RIGHT"
+    }) do
+        local leafVariant = World.BLOCK_LEAVES .. variant
+        if self.sprites[leafVariant] then
+            self.blockQuads[leafVariant] = love.graphics.newQuad(
+                self.sprites[leafVariant].x * self.tilesetSize,
+                self.sprites[leafVariant].y * self.tilesetSize,
+                self.tilesetSize,
+                self.tilesetSize,
+                self.spriteSheet:getDimensions()
+            )
+        else
+            -- Use default leaf sprite for variants not explicitly defined
+            self.blockQuads[leafVariant] = self.blockQuads[World.BLOCK_LEAVES]
         end
     end
 
@@ -113,7 +147,8 @@ function World:generate()
         -- Fill ground
         for y = groundHeight + heightOffset, self.height do
             if y == groundHeight + heightOffset then
-                self:setBlock(x, y, World.BLOCK_GRASS)
+                -- Top layer is just dirt - we'll show it with grass in the draw function
+                self:setBlock(x, y, World.BLOCK_DIRT)
             elseif y < rockDepth then
                 self:setBlock(x, y, World.BLOCK_DIRT)
             else
@@ -236,8 +271,80 @@ function World:draw(camera)
                 -- Set color for the block (used for tinting or if no sprite)
                 love.graphics.setColor(1, 1, 1, 1)
 
+                -- Determine which quad to use based on block type and surroundings
+                local quadToUse = nil
+
+                if blockType == World.BLOCK_DIRT then
+                    -- Check if there's no solid block above
+                    local blockAbove = self:getBlockAt(x, y-1)
+                    if blockAbove == World.BLOCK_AIR then
+                        -- Use grass-topped dirt sprite
+                        quadToUse = self.blockQuads[World.BLOCK_DIRT .. "_TOP"]
+                    else
+                        -- Regular dirt sprite
+                        quadToUse = self.blockQuads[blockType]
+                    end
+                elseif blockType == World.BLOCK_LEAVES then
+                    -- Auto-tiling for leaves based on surrounding leaves
+                    -- Count wood blocks as connecting blocks for leaves too
+                    local isConnectingBlock = function(x, y)
+                        local block = self:getBlockAt(x, y)
+                        return block == World.BLOCK_LEAVES or block == World.BLOCK_WOOD
+                    end
+
+                    local hasLeafAbove = isConnectingBlock(x, y-1)
+                    local hasLeafBelow = isConnectingBlock(x, y+1)
+                    local hasLeafLeft = isConnectingBlock(x-1, y)
+                    local hasLeafRight = isConnectingBlock(x+1, y)
+
+                    -- Determine which leaf sprite to use based on neighbors
+                    local leafType = World.BLOCK_LEAVES
+
+                    -- Check for all the different possible configurations
+                    if hasLeafAbove and hasLeafBelow and hasLeafLeft and hasLeafRight then
+                        -- Leaf surrounded by leaves on all sides
+                        leafType = World.BLOCK_LEAVES
+                    elseif not hasLeafAbove and hasLeafBelow and hasLeafLeft and hasLeafRight then
+                        -- Leaf with top exposed
+                        leafType = World.BLOCK_LEAVES .. "_TOP"
+                    elseif hasLeafAbove and not hasLeafBelow and hasLeafLeft and hasLeafRight then
+                        -- Leaf with bottom exposed
+                        leafType = World.BLOCK_LEAVES .. "_BOTTOM"
+                    elseif hasLeafAbove and hasLeafBelow and not hasLeafLeft and hasLeafRight then
+                        -- Leaf with left exposed
+                        leafType = World.BLOCK_LEAVES .. "_LEFT"
+                    elseif hasLeafAbove and hasLeafBelow and hasLeafLeft and not hasLeafRight then
+                        -- Leaf with right exposed
+                        leafType = World.BLOCK_LEAVES .. "_RIGHT"
+                    elseif not hasLeafAbove and not hasLeafBelow and hasLeafLeft and hasLeafRight then
+                        -- Leaf with top and bottom exposed
+                        leafType = World.BLOCK_LEAVES .. "_TOP_BOTTOM"
+                    elseif hasLeafAbove and hasLeafBelow and not hasLeafLeft and not hasLeafRight then
+                        -- Leaf with left and right exposed
+                        leafType = World.BLOCK_LEAVES .. "_LEFT_RIGHT"
+                    elseif not hasLeafAbove and hasLeafBelow and not hasLeafLeft and hasLeafRight then
+                        -- Top-left corner
+                        leafType = World.BLOCK_LEAVES .. "_TOP_LEFT"
+                    elseif not hasLeafAbove and hasLeafBelow and hasLeafLeft and not hasLeafRight then
+                        -- Top-right corner
+                        leafType = World.BLOCK_LEAVES .. "_TOP_RIGHT"
+                    elseif hasLeafAbove and not hasLeafBelow and not hasLeafLeft and hasLeafRight then
+                        -- Bottom-left corner
+                        leafType = World.BLOCK_LEAVES .. "_BOTTOM_LEFT"
+                    elseif hasLeafAbove and not hasLeafBelow and hasLeafLeft and not hasLeafRight then
+                        -- Bottom-right corner
+                        leafType = World.BLOCK_LEAVES .. "_BOTTOM_RIGHT"
+                    end
+
+                    -- Use the determined leaf quad if it exists, or fall back to default
+                    quadToUse = self.blockQuads[leafType] or self.blockQuads[World.BLOCK_LEAVES]
+                else
+                    -- Other block types use their standard quads
+                    quadToUse = self.blockQuads[blockType]
+                end
+
                 -- Draw using sprite if available
-                if self.blockQuads[blockType] then
+                if quadToUse then
                     -- Calculate scaling to match tile size
                     local scaleX = self.tileSize / self.tilesetSize
                     local scaleY = self.tileSize / self.tilesetSize
@@ -245,7 +352,7 @@ function World:draw(camera)
                     -- Draw the sprite with proper scaling
                     love.graphics.draw(
                         self.spriteSheet,
-                        self.blockQuads[blockType],
+                        quadToUse,
                         pixelX,
                         pixelY,
                         0,  -- rotation

@@ -27,7 +27,6 @@ function Player:new(world, x, y)
     self.selectedBlockType = world.BLOCK_DIRT
     self.blockTypes = {
         world.BLOCK_DIRT,
-        world.BLOCK_GRASS,
         world.BLOCK_STONE,
         world.BLOCK_WOOD,
         world.BLOCK_LEAVES
