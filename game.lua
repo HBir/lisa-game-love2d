@@ -20,6 +20,14 @@ function Game:new()
     self.isPlacingBlock = false
     self.isRemovingBlock = false
 
+    -- Variables to track the last block interacted with
+    self.lastBlockX = -1
+    self.lastBlockY = -1
+
+    -- Block placement rate control
+    self.blockPlacementCooldown = 0
+    self.blockPlacementRate = 0.1 -- seconds between block placements
+
     return self
 end
 
@@ -81,6 +89,37 @@ function Game:update(dt)
 
     -- Update mouse position
     self.mouseX, self.mouseY = love.mouse.getPosition()
+
+    -- Update block placement cooldown
+    if self.blockPlacementCooldown > 0 then
+        self.blockPlacementCooldown = self.blockPlacementCooldown - dt
+    end
+
+    -- Handle continuous block placement/removal when mouse is held down
+    if (self.isPlacingBlock or self.isRemovingBlock) and self.blockPlacementCooldown <= 0 then
+        -- Convert screen coordinates to world coordinates
+        local worldX, worldY = self.camera:screenToWorld(self.mouseX, self.mouseY)
+
+        -- Convert to grid coordinates
+        local gridX = math.floor(worldX / self.world.tileSize) + 1
+        local gridY = math.floor(worldY / self.world.tileSize) + 1
+
+        -- Check if this is a different block than the last one we interacted with
+        if gridX ~= self.lastBlockX or gridY ~= self.lastBlockY then
+            if self.isRemovingBlock then
+                self.world:removeBlock(worldX, worldY)
+            elseif self.isPlacingBlock then
+                self.world:placeBlock(worldX, worldY, self.player.selectedBlockType)
+            end
+
+            -- Update the last block coordinates
+            self.lastBlockX = gridX
+            self.lastBlockY = gridY
+
+            -- Set cooldown to prevent too frequent block operations
+            self.blockPlacementCooldown = self.blockPlacementRate
+        end
+    end
 end
 
 function Game:draw()
@@ -307,6 +346,14 @@ function Game:mousepressed(x, y, button)
         -- Convert screen coordinates to world coordinates
         local worldX, worldY = self.camera:screenToWorld(x, y)
 
+        -- Convert to grid coordinates for tracking
+        local gridX = math.floor(worldX / self.world.tileSize) + 1
+        local gridY = math.floor(worldY / self.world.tileSize) + 1
+
+        -- Store the initial block coordinates
+        self.lastBlockX = gridX
+        self.lastBlockY = gridY
+
         -- Handle block placement/removal
         if button == 1 then -- Left click
             self.world:removeBlock(worldX, worldY)
@@ -315,6 +362,9 @@ function Game:mousepressed(x, y, button)
             self.world:placeBlock(worldX, worldY, self.player.selectedBlockType)
             self.isPlacingBlock = true
         end
+
+        -- Reset cooldown after initial placement
+        self.blockPlacementCooldown = self.blockPlacementRate
     end
 end
 

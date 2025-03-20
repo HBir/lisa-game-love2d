@@ -76,8 +76,9 @@ function World:new(width, height, tileSize)
         [World.BLOCK_LEAVES .. "_LEFT_RIGHT"] = { x = 2, y = 19 },
 
         -- Stone variants
-        [World.BLOCK_STONE] = { x = 3, y = 8 },
+        [World.BLOCK_STONE] = { x = 3, y = 5 },
         [World.BLOCK_STONE .. "_TOP"] = { x = 3, y = 5 },
+        [World.BLOCK_STONE .. "_MIDDLE"] = { x = 3, y = 8 },
         [World.BLOCK_STONE .. "_LEFT"] = { x = 1, y = 7 },
         [World.BLOCK_STONE .. "_RIGHT"] = { x = 4, y = 9 },
         [World.BLOCK_STONE .. "_TOP_LEFT"] = { x = 1, y = 6 },

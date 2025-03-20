@@ -63,7 +63,8 @@ function Player:new(world, x, y)
         frame = 1,
         timer = 0,
         frameTime = 0.15,  -- Made animation slightly faster for smooth walking
-        wasInAir = false   -- Track if player was in the air in previous frame
+        wasInAir = false,   -- Track if player was in the air in previous frame
+        jumpEndHoldCounter = 0  -- Counter to hold the final jump frame
     }
 
     -- Load the character spritesheets
@@ -421,6 +422,7 @@ function Player:updateAnimation(dt)
         self.animation.timer = 0
         self.animation.frameTime = 0.08 -- Faster animation for landing
         self.landingTimer = 0.32 -- Duration of landing animation (4 frames * 0.08s)
+        self.animation.jumpEndHoldCounter = 0 -- Reset jump hold counter when landing
     end
 
     -- Update landing timer
@@ -434,26 +436,60 @@ function Player:updateAnimation(dt)
     -- Update animation state
     if not justLanded then -- Skip if we just started landing animation
         if not self.onGround then
+            -- Handle jump/fall transition with hold counter
             if self.vy < 0 then
+                -- Going up - jump animation
                 self.animation.state = "jump"
                 -- Adjust animation speed for jumping to be slightly faster
                 self.animation.frameTime = 0.1
+                -- Reset hold counter when starting jump
+                if self.animation.state ~= "jump" then
+                    self.animation.jumpEndHoldCounter = 0
+                end
             else
-                self.animation.state = "fall"
-                -- Set animation speed for falling
-                self.animation.frameTime = 0.12
+                -- Going down - should transition to fall
+                -- Check if we should continue holding the final jump frame
+                if self.animation.state == "jump" then
+                    -- If we're at the final jump frame
+                    local maxJumpFrames = #self.quads["jump"]
+                    if self.animation.frame == maxJumpFrames then
+                        -- Increment the hold counter
+                        if self.animation.jumpEndHoldCounter < 2 then
+                            self.animation.jumpEndHoldCounter = self.animation.jumpEndHoldCounter + 1
+                            -- Keep the jump state while holding
+                        else
+                            -- We've held it long enough, now transition to fall
+                            self.animation.state = "fall"
+                            self.animation.frame = 1
+                            self.animation.timer = 0
+                            self.animation.frameTime = 0.12
+                            self.animation.jumpEndHoldCounter = 0
+                        end
+                    else
+                        -- Not at final frame yet, continue jump animation
+                    end
+                else
+                    -- We're already in fall or another state
+                    self.animation.state = "fall"
+                    self.animation.frameTime = 0.12
+                    self.animation.jumpEndHoldCounter = 0
+                end
             end
         else
+            -- On ground states
             if self.landingTimer > 0 then
                 -- Keep in landing state until landing animation completes
                 self.animation.state = "landing"
                 self.animation.frameTime = 0.08
+                self.animation.jumpEndHoldCounter = 0
             elseif self.vx ~= 0 then
                 self.animation.state = "run"
                 self.animation.frameTime = 0.15
+                self.animation.jumpEndHoldCounter = 0
             else
                 self.animation.state = "idle"
                 self.animation.frameTime = 0.15
+                self.animation.jumpEndHoldCounter = 0
             end
         end
     end
@@ -468,7 +504,16 @@ function Player:updateAnimation(dt)
     self.animation.timer = self.animation.timer + dt
     if self.animation.timer >= self.animation.frameTime then
         self.animation.timer = self.animation.timer - self.animation.frameTime
-        self.animation.frame = self.animation.frame + 1
+
+        -- Don't advance frames if we're holding the final jump frame
+        if self.animation.state == "jump" and
+           self.animation.frame == #self.quads["jump"] and
+           self.vy > 0 and
+           self.animation.jumpEndHoldCounter > 0 then
+            -- Don't increment frame, we're holding
+        else
+            self.animation.frame = self.animation.frame + 1
+        end
 
         -- Animation loop or completion handling
         if self.animation.frame > maxFrames then
@@ -500,9 +545,9 @@ function Player:draw()
 
     -- Scale based on facing direction
     -- Using a larger scale since the knight sprite is smaller than the previous sprite
-    local scaleX = 1.0  -- Adjust scale for the knight sprite
-    if self.facing == "left" then scaleX = -1.0 end
-    local scaleY = 1.0
+    local scaleX = 0.75  -- Adjust scale for the knight sprite
+    if self.facing == "left" then scaleX = -0.75 end
+    local scaleY = 0.75
 
     -- Ensure we have a valid animation state and frame
     if not self.quads[self.animation.state] then
