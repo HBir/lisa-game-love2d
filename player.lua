@@ -11,8 +11,8 @@ function Player:new(world, x, y)
     -- Position and size
     self.x = x
     self.y = y
-    self.width = 12
-    self.height = 24
+    self.width = 24
+    self.height = 48
 
     -- Movement properties
     self.speed = 120
@@ -33,6 +33,13 @@ function Player:new(world, x, y)
         world.BLOCK_LEAVES
     }
     self.blockTypeIndex = 1
+
+    -- Block selection feedback
+    self.blockChangeNotification = {
+        text = "",
+        timer = 0,
+        duration = 1.5 -- How long to show the notification
+    }
 
     -- Controls
     self.controls = {
@@ -235,6 +242,11 @@ function Player:updateAnimation(dt)
             self.animation.frame = 1
         end
     end
+
+    -- Update block change notification timer
+    if self.blockChangeNotification.timer > 0 then
+        self.blockChangeNotification.timer = self.blockChangeNotification.timer - dt
+    end
 end
 
 function Player:draw()
@@ -254,6 +266,28 @@ function Player:draw()
         scaleX, 1,  -- scale x, y
         self.width / 2, self.height / 2  -- origin x, y
     )
+
+    -- Draw block selection notification above player if active
+    if self.blockChangeNotification.timer > 0 then
+        -- Calculate alpha based on remaining time (fade out)
+        local alpha = math.min(1, self.blockChangeNotification.timer / (self.blockChangeNotification.duration * 0.5))
+
+        -- Draw text background
+        love.graphics.setColor(0, 0, 0, 0.7 * alpha)
+        local textWidth = #self.blockChangeNotification.text * 8 -- Approximate width
+        love.graphics.rectangle("fill",
+            self.x - textWidth/2 - 5,
+            self.y - self.height - 25,
+            textWidth + 10,
+            20)
+
+        -- Draw text
+        love.graphics.setColor(1, 1, 1, alpha)
+        love.graphics.print(
+            self.blockChangeNotification.text,
+            self.x - textWidth/2,
+            self.y - self.height - 20)
+    end
 
     -- Debug collision box
     --love.graphics.setColor(1, 0, 0, 0.5)
@@ -285,12 +319,29 @@ function Player:keyreleased(key)
     end
 end
 
+function Player:selectBlockType(index)
+    if index >= 1 and index <= #self.blockTypes then
+        self.blockTypeIndex = index
+        self.selectedBlockType = self.blockTypes[self.blockTypeIndex]
+
+        -- Update notification with block name
+        local blockName = self.world.blocks[self.selectedBlockType].name
+        self.blockChangeNotification.text = "Selected: " .. blockName
+        self.blockChangeNotification.timer = self.blockChangeNotification.duration
+    end
+end
+
 function Player:nextBlockType()
     self.blockTypeIndex = self.blockTypeIndex + 1
     if self.blockTypeIndex > #self.blockTypes then
         self.blockTypeIndex = 1
     end
     self.selectedBlockType = self.blockTypes[self.blockTypeIndex]
+
+    -- Update notification with block name
+    local blockName = self.world.blocks[self.selectedBlockType].name
+    self.blockChangeNotification.text = "Selected: " .. blockName
+    self.blockChangeNotification.timer = self.blockChangeNotification.duration
 end
 
 function Player:prevBlockType()
@@ -299,6 +350,11 @@ function Player:prevBlockType()
         self.blockTypeIndex = #self.blockTypes
     end
     self.selectedBlockType = self.blockTypes[self.blockTypeIndex]
+
+    -- Update notification with block name
+    local blockName = self.world.blocks[self.selectedBlockType].name
+    self.blockChangeNotification.text = "Selected: " .. blockName
+    self.blockChangeNotification.timer = self.blockChangeNotification.duration
 end
 
 return Player

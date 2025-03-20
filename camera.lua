@@ -12,6 +12,7 @@ function Camera:new(screenWidth, screenHeight, scale)
     self.screenHeight = screenHeight
     self.target = nil
     self.smoothing = 0.1 -- Camera smoothing factor (0 to 1)
+    self.zoomFactor = 1.5 -- Additional zoom factor to properly see the world
 
     return self
 end
@@ -23,8 +24,8 @@ end
 function Camera:update(dt)
     if self.target then
         -- Calculate the desired camera position (centered on target)
-        local desiredX = self.target.x - self.screenWidth / 2 / self.scale
-        local desiredY = self.target.y - self.screenHeight / 2 / self.scale
+        local desiredX = self.target.x - self.screenWidth / 2 / (self.scale * self.zoomFactor)
+        local desiredY = self.target.y - self.screenHeight / 2 / (self.scale * self.zoomFactor)
 
         -- Smoothly move the camera toward the target
         self.x = self.x + (desiredX - self.x) * self.smoothing * 60 * dt
@@ -35,7 +36,7 @@ end
 function Camera:set()
     -- Apply camera transformation
     love.graphics.push()
-    love.graphics.scale(self.scale)
+    love.graphics.scale(self.scale * self.zoomFactor) -- Apply both scale and zoom factor
     love.graphics.translate(-math.floor(self.x), -math.floor(self.y))
 end
 
@@ -46,15 +47,15 @@ end
 
 function Camera:screenToWorld(screenX, screenY)
     -- Convert screen coordinates to world coordinates
-    local worldX = screenX / self.scale + self.x
-    local worldY = screenY / self.scale + self.y
+    local worldX = screenX / (self.scale * self.zoomFactor) + self.x
+    local worldY = screenY / (self.scale * self.zoomFactor) + self.y
     return worldX, worldY
 end
 
 function Camera:worldToScreen(worldX, worldY)
     -- Convert world coordinates to screen coordinates
-    local screenX = (worldX - self.x) * self.scale
-    local screenY = (worldY - self.y) * self.scale
+    local screenX = (worldX - self.x) * (self.scale * self.zoomFactor)
+    local screenY = (worldY - self.y) * (self.scale * self.zoomFactor)
     return screenX, screenY
 end
 
@@ -62,8 +63,8 @@ function Camera:getBounds()
     -- Get the visible area bounds in world coordinates
     local x1 = self.x
     local y1 = self.y
-    local x2 = self.x + self.screenWidth / self.scale
-    local y2 = self.y + self.screenHeight / self.scale
+    local x2 = self.x + self.screenWidth / (self.scale * self.zoomFactor)
+    local y2 = self.y + self.screenHeight / (self.scale * self.zoomFactor)
 
     return x1, y1, x2, y2
 end
