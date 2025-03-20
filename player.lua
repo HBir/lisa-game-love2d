@@ -15,7 +15,7 @@ function Player:new(world, x, y)
     self.height = 48
 
     -- Movement properties
-    self.speed = 120
+    self.speed = 130
     self.gravity = 800
     self.jumpForce = 300
     self.vx = 0
