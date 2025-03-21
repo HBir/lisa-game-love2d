@@ -1,5 +1,5 @@
 -- Chicken NPC
-local NPC = require("npc")
+local NPC = require("npc.npc")
 
 local Chicken = setmetatable({}, NPC)
 Chicken.__index = Chicken

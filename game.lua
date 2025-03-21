@@ -2,7 +2,7 @@
 local Camera = require("camera")
 local World = require("world")
 local Player = require("player")
-local Chicken = require("chicken")  -- Import the chicken NPC
+local Chicken = require("npc.chicken")  -- Import the chicken NPC
 
 local Game = {}
 Game.__index = Game
