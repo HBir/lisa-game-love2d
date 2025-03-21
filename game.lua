@@ -5,6 +5,7 @@ local Player = require("player")
 local Chicken = require("npc.chicken")  -- Import the chicken NPC
 local Inputs = require("Inputs")  -- Import the new inputs module
 local ParticleSystem = require("ParticleSystem")
+local UI = require("UI")  -- Import the new UI module
 local Game = {}
 Game.__index = Game
 
@@ -91,6 +92,9 @@ function Game:load()
     -- Initialize inputs system
     self.inputs = Inputs:new(self)
 
+    -- Initialize UI system
+    self.ui = UI:new(self)
+
     -- Game state
     self.paused = false
 end
@@ -162,9 +166,8 @@ function Game:update(dt)
     -- Update dust particles
     self.particles:UpdateAllParticles(dt)
 
-
     -- Update save message
-    self:updateSaveMessage(dt)
+    self.ui:updateSaveMessage(dt)
 
     -- Update inputs
     self.inputs:update(dt)
@@ -231,20 +234,20 @@ function Game:draw()
     self.player:draw()
 
     -- Draw block placement preview
-    self:drawBlockPlacementPreview()
+    self.ui:drawBlockPlacementPreview()
 
     -- End camera transformation
     self.camera:unset()
 
     -- Draw the UI on top (fixed position, not affected by camera)
-    self:drawUI()
+    self.ui:drawUI()
 
     -- Draw LISA sequence progress
-    self:drawLisaProgress()
+    self.ui:drawLisaProgress()
 
     -- Draw sprite debug view if enabled (should be on top of everything)
     if self.showSpriteDebug then
-        self:drawSpriteDebug()
+        self.ui:drawSpriteDebug()
     end
 end
 
@@ -254,244 +257,6 @@ function Game:drawNPCs()
         -- Only draw NPCs that are visible on screen (optimization)
         if npc:isVisible(self.camera) then
             npc:draw()
-        end
-    end
-end
-
-function Game:drawUI()
-    -- Draw the UI elements here
-    love.graphics.setColor(1, 1, 1, 1)
-
-    -- Draw current block type indicator (in bottom left)
-    local blockType = self.player.selectedBlockType
-    local block = self.world.blocks[blockType]
-    local blockSize = 32
-    local margin = 10
-    local labelX = 10
-    local labelY = self.height - blockSize - margin - 20
-
-    -- Draw save/load message if present
-    if self.saveMessage then
-        -- Position message at top center of screen
-        local font = love.graphics.getFont()
-        local textWidth = font:getWidth(self.saveMessage.text)
-        local x = (self.width - textWidth) / 2
-        local y = 40
-
-        -- Draw a semi-transparent background for better readability
-        love.graphics.setColor(0, 0, 0, 0.7)
-        love.graphics.rectangle("fill", x - 10, y - 5, textWidth + 20, 30)
-
-        -- Draw the message text
-        love.graphics.setColor(self.saveMessage.color)
-        love.graphics.print(self.saveMessage.text, x, y)
-
-        -- Reset color
-        love.graphics.setColor(1, 1, 1, 1)
-    end
-
-    -- Draw block preview
-    love.graphics.setColor(1, 1, 1, 1)
-    if self.world.blockQuads[blockType] then
-        -- Calculate scaling to match display size
-        local scaleX = blockSize / self.world.tilesetSize
-        local scaleY = blockSize / self.world.tilesetSize
-
-        -- Draw the sprite
-        love.graphics.draw(
-            self.world.spriteSheet,
-            self.world.blockQuads[blockType],
-            labelX,
-            labelY + 20,
-            0,  -- rotation
-            scaleX,
-            scaleY
-        )
-    else
-        -- Fallback to colored rectangle
-        love.graphics.setColor(block.color)
-        love.graphics.rectangle("fill", labelX, labelY + 20, blockSize, blockSize)
-    end
-
-    -- Draw block outline
-    love.graphics.setColor(0, 0, 0, 0.5)
-    love.graphics.rectangle("line", labelX, labelY + 20, blockSize, blockSize)
-
-    -- Draw controls help
-    love.graphics.setColor(1, 1, 1, 0.7)
-    love.graphics.print("F5: Save World  |  F9: Load World", self.width - 250, 10)
-
-    -- Draw block selection hotbar at the bottom of the screen
-    self:drawBlockHotbar()
-end
-
-function Game:drawBlockHotbar()
-    local blockSize = 40
-    local margin = 5
-    local totalBlocks = #self.player.blockTypes
-    local hotbarWidth = (blockSize + margin) * totalBlocks - margin
-    local hotbarX = (self.width - hotbarWidth) / 2
-    local hotbarY = self.height - blockSize - margin
-
-    -- Draw background
-    love.graphics.setColor(0, 0, 0, 0.7)
-    love.graphics.rectangle("fill", hotbarX - margin, hotbarY - margin,
-                            hotbarWidth + margin * 2, blockSize + margin * 2, 5, 5)
-
-    -- Draw each block in the hotbar
-    for i, blockTypeId in ipairs(self.player.blockTypes) do
-        local block = self.world.blocks[blockTypeId]
-        local x = hotbarX + (i - 1) * (blockSize + margin)
-        local y = hotbarY
-
-        -- Draw the block
-        love.graphics.setColor(1, 1, 1, 1)
-        if self.world.blockQuads[blockTypeId] then
-            -- Calculate scaling to match display size
-            local scaleX = blockSize / self.world.tilesetSize
-            local scaleY = blockSize / self.world.tilesetSize
-
-            -- Draw the sprite
-            love.graphics.draw(
-                self.world.spriteSheet,
-                self.world.blockQuads[blockTypeId],
-                x,
-                y,
-                0,  -- rotation
-                scaleX,
-                scaleY
-            )
-        else
-            -- Fallback to colored rectangle
-            love.graphics.setColor(block.color)
-            love.graphics.rectangle("fill", x, y, blockSize, blockSize)
-        end
-
-        -- Draw outline
-        if self.player.blockTypeIndex == i then
-            -- Highlight selected block
-            love.graphics.setColor(1, 1, 1, 1)
-            love.graphics.setLineWidth(3)
-            love.graphics.rectangle("line", x - 2, y - 2, blockSize + 4, blockSize + 4)
-            love.graphics.setLineWidth(1)
-        else
-            love.graphics.setColor(0, 0, 0, 0.5)
-            love.graphics.rectangle("line", x, y, blockSize, blockSize)
-        end
-
-        -- Draw block number (1-5)
-        love.graphics.setColor(1, 1, 1, 1)
-        love.graphics.print(i, x + 5, y + 5)
-    end
-
-    -- Reset color and line width
-    love.graphics.setColor(1, 1, 1, 1)
-    love.graphics.setLineWidth(1)
-end
-
-function Game:drawLisaProgress()
-    -- Only display the progress if the sequence has been started (at least "L" pressed)
-    if self.particles.lisaSequence.displayTimer > 0 and self.particles.lisaSequence.currentIndex > 0 then
-        local sequence = "LISA"
-        local font = love.graphics.getFont()
-        local letterSpacing = 40  -- Increased from 30 to 40 for more space between letters
-        local totalWidth = letterSpacing * (#sequence - 1) + font:getWidth(sequence) * 2  -- Adjusted for larger letters
-        local x = (self.width - totalWidth) / 2
-        local y = 470
-
-        -- Draw a semi-transparent background for better visibility
-        love.graphics.setColor(0, 0, 0, 0.6)
-        love.graphics.rectangle("fill", x - 20, y - 10, totalWidth, 60, 10, 10)
-
-        for i = 1, #sequence do
-            local letter = sequence:sub(i, i)
-            local letterX = x + (i - 1) * letterSpacing
-
-            if i <= self.particles.lisaSequence.currentIndex then
-                -- Draw completed letters in bright yellow (more visible than green)
-                love.graphics.setColor(1, 0.9, 0.2, 1)  -- Bright yellow
-
-                -- Add glow effect for completed letters
-                love.graphics.setColor(1, 0.9, 0.2, 0.3)  -- Transparent yellow for glow
-                love.graphics.circle("fill", letterX + font:getWidth(letter), y + 15, 20)
-
-                -- Draw the actual letter
-                love.graphics.setColor(1, 0.9, 0.2, 1)  -- Bright yellow
-            else
-                -- Draw pending letters in white/silver (more visible than gray)
-                love.graphics.setColor(0.9, 0.9, 1, 0.8)  -- Bright silver/white
-            end
-
-            -- Draw letter with larger scaling (increased from 1.5/1.0 to 2.0/1.5)
-            local scale = i <= self.particles.lisaSequence.currentIndex and 2.0 or 1.5
-            love.graphics.print(letter, letterX, y, 0, scale, scale)
-
-            -- Draw a subtle outline for better contrast against any background
-            if i <= self.particles.lisaSequence.currentIndex then
-                love.graphics.setColor(0.5, 0.5, 0, 0.5)  -- Dark yellow outline
-            else
-                love.graphics.setColor(0.1, 0.1, 0.2, 0.5)  -- Dark blue/black outline
-            end
-            love.graphics.setLineWidth(2)
-            love.graphics.print(letter, letterX + 1, y + 1, 0, scale, scale)
-            love.graphics.setLineWidth(1)
-        end
-
-        -- Reset color
-        love.graphics.setColor(1, 1, 1, 1)
-    end
-end
-
--- Drawing the block placement preview
-function Game:drawBlockPlacementPreview()
-    if self.inputs.isPlacingBlock or self.inputs.isRemovingBlock then
-        local worldX, worldY = self.camera:screenToWorld(self.inputs.mouseX, self.inputs.mouseY)
-        local gridX = math.floor(worldX / self.world.tileSize) + 1
-        local gridY = math.floor(worldY / self.world.tileSize) + 1
-        local pixelX = (gridX - 1) * self.world.tileSize
-        local pixelY = (gridY - 1) * self.world.tileSize
-
-        if self.inputs.isPlacingBlock then
-            -- Show preview of block to be placed
-            local blockType = self.player.selectedBlockType
-            local block = self.world.blocks[blockType]
-
-            if self.world.blockQuads[blockType] then
-                -- Draw semi-transparent sprite
-                love.graphics.setColor(1, 1, 1, 0.5)
-
-                -- Calculate scaling
-                local scaleX = self.world.tileSize / self.world.tilesetSize
-                local scaleY = self.world.tileSize / self.world.tilesetSize
-
-                -- Draw the sprite
-                love.graphics.draw(
-                    self.world.spriteSheet,
-                    self.world.blockQuads[blockType],
-                    pixelX,
-                    pixelY,
-                    0,  -- rotation
-                    scaleX,
-                    scaleY
-                )
-            else
-                -- Fallback to semi-transparent block
-                love.graphics.setColor(block.color[1], block.color[2], block.color[3], 0.5)
-                love.graphics.rectangle("fill", pixelX, pixelY, self.world.tileSize, self.world.tileSize)
-            end
-
-            -- Draw outline
-            love.graphics.setColor(1, 1, 1, 0.8)
-            love.graphics.rectangle("line", pixelX, pixelY, self.world.tileSize, self.world.tileSize)
-        else
-            -- Show removal indicator
-            love.graphics.setColor(1, 0, 0, 0.3)
-            love.graphics.rectangle("fill", pixelX, pixelY, self.world.tileSize, self.world.tileSize)
-
-            -- Draw X
-            love.graphics.setColor(1, 0, 0, 0.8)
-            love.graphics.line(pixelX, pixelY, pixelX + self.world.tileSize, pixelY + self.world.tileSize)
-            love.graphics.line(pixelX + self.world.tileSize, pixelY, pixelX, pixelY + self.world.tileSize)
         end
     end
 end
@@ -579,18 +344,10 @@ function Game:saveWorld()
     -- Show a message to the player
     if success then
         print("World saved to " .. filename)
-        self.saveMessage = {
-            text = "World saved!",
-            timer = 3, -- Display for 3 seconds
-            color = {0, 1, 0, 1} -- Green color
-        }
+        self.ui:setSaveMessage("World saved!", {0, 1, 0, 1}, 3) -- Green color, 3 seconds
     else
         print("Failed to save world.")
-        self.saveMessage = {
-            text = "Save failed!",
-            timer = 3,
-            color = {1, 0, 0, 1} -- Red color
-        }
+        self.ui:setSaveMessage("Save failed!", {1, 0, 0, 1}, 3) -- Red color, 3 seconds
     end
 end
 
@@ -609,11 +366,7 @@ function Game:loadWorld()
     -- If no save files found
     if #saveFiles == 0 then
         print("No save files found.")
-        self.saveMessage = {
-            text = "No save files found!",
-            timer = 3,
-            color = {1, 0.5, 0, 1} -- Orange color
-        }
+        self.ui:setSaveMessage("No save files found!", {1, 0.5, 0, 1}, 3) -- Orange color, 3 seconds
         return
     end
 
@@ -629,28 +382,10 @@ function Game:loadWorld()
     -- Show a message to the player
     if success then
         print("World loaded from " .. filename)
-        self.saveMessage = {
-            text = "World loaded!",
-            timer = 3,
-            color = {0, 1, 0, 1} -- Green color
-        }
+        self.ui:setSaveMessage("World loaded!", {0, 1, 0, 1}, 3) -- Green color, 3 seconds
     else
         print("Failed to load world from " .. filename)
-        self.saveMessage = {
-            text = "Load failed!",
-            timer = 3,
-            color = {1, 0, 0, 1} -- Red color
-        }
-    end
-end
-
--- Update the save message timer
-function Game:updateSaveMessage(dt)
-    if self.saveMessage then
-        self.saveMessage.timer = self.saveMessage.timer - dt
-        if self.saveMessage.timer <= 0 then
-            self.saveMessage = nil
-        end
+        self.ui:setSaveMessage("Load failed!", {1, 0, 0, 1}, 3) -- Red color, 3 seconds
     end
 end
 
@@ -705,106 +440,6 @@ end
 -- Create an explosion effect at the specified position
 function Game:createExplosion(x, y, colors)
     self.particles:createExplosion(x, y, colors)
-end
-
--- Function to draw the sprite debug view
-function Game:drawSpriteDebug()
-    -- Get the sprite sheet and tilesize from the block registry
-    local spriteSheet = self.world.blockRegistry.spriteSheet
-    local tileSize = self.world.blockRegistry.tilesetSize
-
-    -- Calculate how many sprites fit per row based on window width
-    local columns = math.floor(self.width / (tileSize * 4))
-    local spacing = 5 -- Space between sprites horizontally
-    local verticalSpacing = 35 -- Increased vertical spacing to make room for text
-    local scale = 3 -- Scale up sprites for better visibility
-
-    -- Draw semi-transparent background
-    love.graphics.setColor(0, 0, 0, 0.8)
-    love.graphics.rectangle("fill", 0, 0, self.width, self.height)
-
-    -- Draw title
-    love.graphics.setColor(1, 1, 1, 1)
-    love.graphics.print("SPRITE DEBUG VIEW (Press X to exit)", 10, 10)
-
-    -- Get the sprite mappings
-    local sprites = self.world.blockRegistry.sprites
-    local sortedKeys = {}
-
-    -- Collect and sort sprite keys for organized display
-    for key, _ in pairs(sprites) do
-        table.insert(sortedKeys, key)
-    end
-
-    -- Custom sort function to handle both string and numeric keys
-    table.sort(sortedKeys, function(a, b)
-        local typeA, typeB = type(a), type(b)
-
-        -- If both keys are the same type, compare directly
-        if typeA == typeB then
-            if typeA == "number" then
-                return a < b
-            else
-                return tostring(a) < tostring(b)
-            end
-        else
-            -- If different types, numbers come first
-            return typeA == "number"
-        end
-    end)
-
-    -- Draw each sprite
-    local row = 0
-    local col = 0
-    local startY = 50 -- Start below the title, increased for better spacing
-
-    for i, key in ipairs(sortedKeys) do
-        local sprite = sprites[key]
-        local x = 10 + col * (tileSize * scale + spacing)
-        local y = startY + row * (tileSize * scale + verticalSpacing)
-
-        -- Draw sprite if valid
-        if sprite and sprite.x and sprite.y then
-            -- Create a quad for this sprite
-            local quad = love.graphics.newQuad(
-                sprite.x * tileSize,
-                sprite.y * tileSize,
-                tileSize,
-                tileSize,
-                spriteSheet:getDimensions()
-            )
-
-            -- Draw sprite
-            love.graphics.setColor(1, 1, 1, 1)
-            love.graphics.draw(spriteSheet, quad, x, y, 0, scale, scale)
-
-            -- Draw sprite info
-            local spriteKey = tostring(key)
-            if type(key) == "number" then
-                -- For block types, show the block name
-                local block = self.world.blockRegistry:getBlock(key)
-                if block then
-                    spriteKey = block.name
-                end
-            end
-
-            -- Draw text with dark background for better readability
-            local textWidth = spriteKey:len() * 6 -- Approximate width
-            love.graphics.setColor(0, 0, 0, 0.7)
-            love.graphics.rectangle("fill", x, y + tileSize * scale + 2, textWidth, 14)
-
-            -- Draw the text
-            love.graphics.setColor(1, 1, 0.5, 1)
-            love.graphics.print(spriteKey, x, y + tileSize * scale + 2, 0, 0.8, 0.8)
-        end
-
-        -- Move to next column or row
-        col = col + 1
-        if col >= columns then
-            col = 0
-            row = row + 1
-        end
-    end
 end
 
 return Game
