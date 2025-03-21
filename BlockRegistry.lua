@@ -17,7 +17,7 @@ function BlockRegistry:new()
     local self = setmetatable({}, BlockRegistry)
 
     -- Load sprite sheet
-    self.spriteSheet = love.graphics.newImage("assets/Tiles/Assets/Assets.png")
+    self.spriteSheet = love.graphics.newImage("assets/Tiles/Assets/Assets-sheet.png")
     self.tilesetSize = 16 -- Size of each tile in the sprite sheet
 
     -- Initialize sprite mapping table
@@ -32,78 +32,83 @@ function BlockRegistry:new()
     return self
 end
 
+-- This will returns an array
+function BlockRegistry:createBlockWithVariants(blockType, variants)
+    local sprites = {}
+
+    sprites[blockType] = { x = variants[1][2][1], y = variants[1][2][2] }
+    sprites[blockType .. "_TOP_LEFT"] = { x = variants[1][1][1], y = variants[1][1][2] }
+    sprites[blockType .. "_TOP"] = { x = variants[1][2][1], y = variants[1][2][2] }
+    sprites[blockType .. "_TOP_RIGHT"] = { x = variants[1][3][1], y = variants[1][3][2] }
+    sprites[blockType .. "_LEFT"] = { x = variants[2][1][1], y = variants[2][1][2] }
+    sprites[blockType .. "_MIDDLE"] = { x = variants[2][2][1], y = variants[2][2][2] }
+    sprites[blockType .. "_RIGHT"] = { x = variants[2][3][1], y = variants[2][3][2] }
+    sprites[blockType .. "_BOTTOM_LEFT"] = { x = variants[3][1][1], y = variants[3][1][2] }
+    sprites[blockType .. "_BOTTOM"] = { x = variants[3][2][1], y = variants[3][2][2] }
+    sprites[blockType .. "_BOTTOM_RIGHT"] = { x = variants[3][3][1], y = variants[3][3][2] }
+
+    sprites[blockType .. "_LEFT_RIGHT"] = { x = variants[2][1][1], y = variants[2][3][2] }
+    sprites[blockType .. "_TOP_BOTTOM"] = { x = variants[1][2][1], y = variants[1][2][2] }
+
+
+    return sprites
+end
+
 function BlockRegistry:initializeSpriteMapping()
     local sprites = {}
 
     -- Basic blocks
     sprites[self.BLOCK_AIR] = { x = 0, y = 0 }
 
-    -- Dirt block and variants
-    sprites[self.BLOCK_DIRT] = { x = 3, y = 0 }
-    sprites[self.BLOCK_DIRT .. "_TOP"] = { x = 3, y = 0 }
-    sprites[self.BLOCK_DIRT .. "_TOP_LEFT"] = { x = 2, y = 0 }
-    sprites[self.BLOCK_DIRT .. "_LEFT"] = { x = 1, y = 2 }
-    sprites[self.BLOCK_DIRT .. "_TOP_RIGHT"] = { x = 5, y = 1 }
-    sprites[self.BLOCK_DIRT .. "_RIGHT"] = { x = 5, y = 2 }
-    sprites[self.BLOCK_DIRT .. "_MIDDLE"] = { x = 3, y = 1 }
-    sprites[self.BLOCK_DIRT .. "_BOTTOM_LEFT"] = { x = 3, y = 1 }
-    sprites[self.BLOCK_DIRT .. "_BOTTOM_RIGHT"] = { x = 3, y = 1 }
-    sprites[self.BLOCK_DIRT .. "_BOTTOM"] = { x = 3, y = 1 }
+    local blockTypes = {
+        self:createBlockWithVariants(self.BLOCK_DIRT,
+            {{{1,0},{2,0},{5,1}},
+            {{12,1},{3,1},{5,2}},
+            {{3,1},{3,1},{3,1}}}
+        ),
+        self:createBlockWithVariants(self.BLOCK_TREE,
+            {{{3,13},{3,13},{4,13}},
+            {{3,13},{3,13},{4,13}},
+            {{3,13},{3,13},{4,13}}}
+        ),
+        self:createBlockWithVariants(self.BLOCK_WOOD,
+            {{{5,8},{5,8},{5,8}},
+            {{5,8},{5,8},{5,8}},
+            {{5,8},{5,8},{5,8}}}
+        ),
+        self:createBlockWithVariants(self.BLOCK_LEAVES,
+            {{{11,11},{12,11},{13,11}},
+            {{15,12},{10,12},{0,13}},
+            {{7,13},{13,13},{10,13}}}
+        ),
+        self:createBlockWithVariants(self.BLOCK_STONE,
+            {{{1,5},{2,5},{3,5}},
+            {{2,7},{5,12},{3,7}},
+            {{0,8},{13,8},{3,8}}}
+        ),
+        self:createBlockWithVariants(self.BLOCK_STONE_BACKGROUND,
+            {{{8,10},{9,10},{10,10}},
+            {{1,11},{1,11},{1,11}},
+            {{1,11},{1,11},{1,11}}}
+        ),
+        self:createBlockWithVariants(self.BLOCK_WOOD_BACKGROUND,
+            {{{15,10},{15,10},{15,10}},
+            {{15,10},{15,10},{15,10}},
+            {{15,10},{15,10},{15,10}}}
+        ),
+        self:createBlockWithVariants(self.REMOVE_BACKGROUND,
+            {{{12,14},{12,14},{12,14}},
+            {{12,14},{12,14},{12,14}},
+            {{12,14},{12,14},{12,14}}}
+        ),
+    }
 
-    -- Tree block and variants
-    sprites[self.BLOCK_TREE] = { x = 9, y = 18 }
-    sprites[self.BLOCK_TREE .. "_TOP_LEFT"] = { x = 9, y = 17 }
-    sprites[self.BLOCK_TREE .. "_LEFT"] = { x = 9, y = 17 }
-    sprites[self.BLOCK_TREE .. "_BOTTOM_LEFT"] = { x = 9, y = 17 }
-    sprites[self.BLOCK_TREE .. "_RIGHT"] = { x = 10, y = 17 }
-    sprites[self.BLOCK_TREE .. "_BOTTOM_RIGHT"] = { x = 10, y = 17 }
-    sprites[self.BLOCK_TREE .. "_TOP_RIGHT"] = { x = 10, y = 17 }
-
-    -- Wood blocks
-    sprites[self.BLOCK_WOOD] = { x = 8, y = 8 }
-    sprites[self.BLOCK_WOOD_BACKGROUND] = { x = 8, y = 13 }
-
-    -- Leaf blocks and variants
-    sprites[self.BLOCK_LEAVES] = { x = 3, y = 15 }
-    sprites[self.BLOCK_LEAVES .. "_MIDDLE"] = { x = 2, y = 17 }
-    sprites[self.BLOCK_LEAVES .. "_TOP"] = { x = 3, y = 15 }
-    sprites[self.BLOCK_LEAVES .. "_BOTTOM"] = { x = 3, y = 19 }
-    sprites[self.BLOCK_LEAVES .. "_LEFT"] = { x = 1, y = 17 }
-    sprites[self.BLOCK_LEAVES .. "_RIGHT"] = { x = 5, y = 17 }
-    sprites[self.BLOCK_LEAVES .. "_TOP_LEFT"] = { x = 1, y = 16 }
-    sprites[self.BLOCK_LEAVES .. "_TOP_RIGHT"] = { x = 4, y = 15 }
-    sprites[self.BLOCK_LEAVES .. "_BOTTOM_LEFT"] = { x = 1, y = 18 }
-    sprites[self.BLOCK_LEAVES .. "_BOTTOM_RIGHT"] = { x = 4, y = 19 }
-    sprites[self.BLOCK_LEAVES .. "_TOP_BOTTOM"] = { x = 4, y = 17 }
-    sprites[self.BLOCK_LEAVES .. "_LEFT_RIGHT"] = { x = 2, y = 19 }
-
-    -- Stone blocks and variants
-    sprites[self.BLOCK_STONE] = { x = 3, y = 5 }
-    sprites[self.BLOCK_STONE .. "_TOP"] = { x = 3, y = 5 }
-    sprites[self.BLOCK_STONE .. "_MIDDLE"] = { x = 3, y = 8 }
-    sprites[self.BLOCK_STONE .. "_LEFT"] = { x = 1, y = 7 }
-    sprites[self.BLOCK_STONE .. "_RIGHT"] = { x = 4, y = 9 }
-    sprites[self.BLOCK_STONE .. "_TOP_LEFT"] = { x = 1, y = 6 }
-    sprites[self.BLOCK_STONE .. "_TOP_RIGHT"] = { x = 5, y = 6 }
-    sprites[self.BLOCK_STONE .. "_TOP_BOTTOM"] = { x = 5, y = 9 }
-    sprites[self.BLOCK_STONE .. "_BOTTOM"] = { x = 3, y = 9 }
-    sprites[self.BLOCK_STONE .. "_BOTTOM_LEFT"] = { x = 2, y = 9 }
-    sprites[self.BLOCK_STONE .. "_BOTTOM_RIGHT"] = { x = 4, y = 9 }
-    sprites[self.BLOCK_STONE .. "_LEFT_RIGHT"] = { x = 3, y = 11 }
-
-    -- Stone background blocks and variants
-    sprites[self.BLOCK_STONE_BACKGROUND] = { x = 13, y = 13 }
-    sprites[self.BLOCK_STONE_BACKGROUND .. "_TOP"] = { x = 13, y = 12 }
-    sprites[self.BLOCK_STONE_BACKGROUND .. "_TOP_LEFT"] = { x = 13, y = 12 }
-    sprites[self.BLOCK_STONE_BACKGROUND .. "_TOP_RIGHT"] = { x = 13, y = 12 }
-    sprites[self.BLOCK_STONE_BACKGROUND .. "_TOP_BOTTOM"] = { x = 13, y = 13 }
-    sprites[self.BLOCK_STONE_BACKGROUND .. "_BOTTOM"] = { x = 13, y = 13 }
-    sprites[self.BLOCK_STONE_BACKGROUND .. "_BOTTOM_LEFT"] = { x = 13, y = 13 }
-    sprites[self.BLOCK_STONE_BACKGROUND .. "_BOTTOM_RIGHT"] = { x = 13, y = 13 }
-    sprites[self.BLOCK_STONE_BACKGROUND .. "_LEFT_RIGHT"] = { x = 13, y = 13 }
-    sprites[self.BLOCK_STONE_BACKGROUND .. "_MIDDLE"] = { x = 13, y = 13 }
-    sprites[self.BLOCK_STONE_BACKGROUND .. "_LEFT"] = { x = 13, y = 13 }
-    sprites[self.BLOCK_STONE_BACKGROUND .. "_RIGHT"] = { x = 13, y = 13 }
+    for _, blockType in pairs(blockTypes) do
+        for k, v in pairs(blockType) do
+            print(k, v)
+            sprites[k] = v
+        end
+    end
 
     return sprites
 end
@@ -185,8 +190,8 @@ function BlockRegistry:createQuads()
     for blockType, block in pairs(self.blocks) do
         if block.sprite then
             quads[blockType] = love.graphics.newQuad(
-                block.sprite.x * self.tilesetSize,
-                block.sprite.y * self.tilesetSize,
+                block.sprite.x * (self.tilesetSize +1),
+                block.sprite.y * (self.tilesetSize +1),
                 self.tilesetSize,
                 self.tilesetSize,
                 self.spriteSheet:getDimensions()
@@ -208,8 +213,8 @@ function BlockRegistry:createQuads()
                 local blockVariant = blockType .. variant
                 if self.sprites[blockVariant] then
                     quads[blockVariant] = love.graphics.newQuad(
-                        self.sprites[blockVariant].x * self.tilesetSize,
-                        self.sprites[blockVariant].y * self.tilesetSize,
+                        self.sprites[blockVariant].x * (self.tilesetSize +1),
+                        self.sprites[blockVariant].y * (self.tilesetSize +1),
                         self.tilesetSize,
                         self.tilesetSize,
                         self.spriteSheet:getDimensions()
@@ -223,7 +228,7 @@ function BlockRegistry:createQuads()
 end
 
 function BlockRegistry:getQuad(blockType, variant)
-    local key = variant and (blockType .. variant) or blockType
+    local key = variant and variant or blockType
     return self.blockQuads[key]
 end
 

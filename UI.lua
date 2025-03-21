@@ -270,76 +270,36 @@ function UI:drawSpriteDebug()
     love.graphics.setColor(1, 1, 1, 1)
     love.graphics.print("SPRITE DEBUG VIEW (Press X to exit)", 10, 10)
 
-    -- Get the sprite mappings
-    local sprites = self.game.world.blockRegistry.sprites
-    local sortedKeys = {}
 
-    -- Collect and sort sprite keys for organized display
-    for key, _ in pairs(sprites) do
-        table.insert(sortedKeys, key)
-    end
-
-    -- Custom sort function to handle both string and numeric keys
-    table.sort(sortedKeys, function(a, b)
-        local typeA, typeB = type(a), type(b)
-
-        -- If both keys are the same type, compare directly
-        if typeA == typeB then
-            if typeA == "number" then
-                return a < b
-            else
-                return tostring(a) < tostring(b)
-            end
-        else
-            -- If different types, numbers come first
-            return typeA == "number"
-        end
-    end)
-
+    local quads = self.game.world.blockRegistry.blockQuads
     -- Draw each sprite
     local row = 0
     local col = 0
     local startY = 50 -- Start below the title, increased for better spacing
 
-    for i, key in ipairs(sortedKeys) do
-        local sprite = sprites[key]
+    -- sort quads
+    local sortedQuads = {}
+
+    for key, quad in pairs(quads) do
+        table.insert(sortedQuads, {key = key, quad = quad})
+    end
+
+    table.sort(sortedQuads, function(a, b)
+        return tostring(a.key) < tostring(b.key)
+    end)
+
+    for _, quad in pairs(sortedQuads) do
         local x = 10 + col * (tileSize * scale + spacing)
         local y = startY + row * (tileSize * scale + verticalSpacing)
+        love.graphics.draw(spriteSheet, quad.quad, x, y, 0, scale, scale)
 
-        -- Draw sprite if valid
-        if sprite and sprite.x and sprite.y then
-            -- Create a quad for this sprite
-            local quad = love.graphics.newQuad(
-                sprite.x * tileSize,
-                sprite.y * tileSize,
-                tileSize,
-                tileSize,
-                spriteSheet:getDimensions()
-            )
-
-            -- Draw sprite
-            love.graphics.setColor(1, 1, 1, 1)
-            love.graphics.draw(spriteSheet, quad, x, y, 0, scale, scale)
-
-            -- Draw sprite info
-            local spriteKey = tostring(key)
-            if type(key) == "number" then
-                -- For block types, show the block name
-                local block = self.game.world.blockRegistry:getBlock(key)
-                if block then
-                    spriteKey = block.name
-                end
-            end
-
-            -- Draw text with dark background for better readability
-            local textWidth = spriteKey:len() * 6 -- Approximate width
-            love.graphics.setColor(0, 0, 0, 0.7)
-            love.graphics.rectangle("fill", x, y + tileSize * scale + 2, textWidth, 14)
-
-            -- Draw the text
-            love.graphics.setColor(1, 1, 0.5, 1)
-            love.graphics.print(spriteKey, x, y + tileSize * scale + 2, 0, 0.8, 0.8)
-        end
+        local blockTypeStr = tostring(quad.key)
+        local textWidth = blockTypeStr:len() * 6 -- Approximate width
+        love.graphics.setColor(0, 0, 0, 0.7)
+        love.graphics.rectangle("fill", x, y + tileSize * scale + 2, textWidth, 14)
+        -- Draw the text
+        love.graphics.setColor(1, 1, 0.5, 1)
+        love.graphics.print(blockTypeStr, x, y + tileSize * scale + 2, 0, 0.8, 0.8)
 
         -- Move to next column or row
         col = col + 1

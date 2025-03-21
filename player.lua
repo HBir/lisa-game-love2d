@@ -17,7 +17,7 @@ function Player:new(world, x, y)
     -- Movement properties
     self.speed = 130
     self.gravity = 800
-    self.jumpForce = 300
+    self.jumpForce = 330
     self.vx = 0
     self.vy = 0
     self.onGround = false
