@@ -11,7 +11,7 @@ function Game:new()
     local self = setmetatable({}, Game)
 
     -- Game settings
-    self.title = "Princess Builder"
+    self.title = "Lisa's Game"
     self.width = 800
     self.height = 600
 
@@ -759,7 +759,6 @@ end
 function Game:drawUI()
     -- Draw the UI elements here
     love.graphics.setColor(1, 1, 1, 1)
-    love.graphics.print("Princess Builder - FPS: " .. love.timer.getFPS(), 10, 10)
 
     -- Draw current block type indicator (in bottom left)
     local blockType = self.player.selectedBlockType

@@ -42,6 +42,9 @@ function World:new(width, height, tileSize)
     -- Initialize world generator
     self.generator = WorldGenerator:new(self.gridSystem, self.blockRegistry)
 
+    -- Store reference to world in generator for saving player and NPC positions
+    self.generator.world = self
+
     -- Initialize save manager
     self.saveManager = WorldSaveManager:new(self.gridSystem, self.generator)
 

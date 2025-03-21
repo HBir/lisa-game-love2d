@@ -1,12 +1,12 @@
 -- Configuration file for LÖVE2D
 function love.conf(t)
     -- Game identity
-    t.identity = "princess_builder"  -- Save directory name
+    t.identity = "lisas_game"  -- Save directory name
     t.version = "11.4"               -- LÖVE version this game was made for
     t.console = false                -- Enable console output on Windows
 
     -- Window settings
-    t.window.title = "Princess Builder"
+    t.window.title = "Lisa's Game"
     t.window.icon = nil              -- Path to window icon (can be set later)
     t.window.width = 800
     t.window.height = 600

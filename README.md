@@ -1,4 +1,4 @@
-# Princess Builder
+# Lisa's Game
 
 A Terraria-like 2D sandbox game built with LÖVE2D (pronounced "love"), where you play as a princess who can place and remove blocks to build structures in a procedurally generated world.
 
