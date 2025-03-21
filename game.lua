@@ -42,6 +42,9 @@ function Game:new()
     -- Firework particles
     self.fireworkParticles = {}
 
+    -- Debug options
+    self.showSpriteDebug = false
+
     return self
 end
 
@@ -744,6 +747,11 @@ function Game:draw()
 
     -- Draw LISA sequence progress
     self:drawLisaProgress()
+
+    -- Draw sprite debug view if enabled (should be on top of everything)
+    if self.showSpriteDebug then
+        self:drawSpriteDebug()
+    end
 end
 
 -- Function to draw all NPCs
@@ -953,6 +961,11 @@ function Game:keypressed(key)
     -- Load world with F9
     if key == "f9" then
         self:loadWorld()
+    end
+
+    -- Toggle sprite debug view with X
+    if key == "x" then
+        self.showSpriteDebug = not self.showSpriteDebug
     end
 
     -- Check for LISA sequence
@@ -1458,6 +1471,106 @@ function Game:createExplosion(x, y, colors)
         y = y,
         timeRemaining = 1.5
     })
+end
+
+-- Function to draw the sprite debug view
+function Game:drawSpriteDebug()
+    -- Get the sprite sheet and tilesize from the block registry
+    local spriteSheet = self.world.blockRegistry.spriteSheet
+    local tileSize = self.world.blockRegistry.tilesetSize
+
+    -- Calculate how many sprites fit per row based on window width
+    local columns = math.floor(self.width / (tileSize * 4))
+    local spacing = 5 -- Space between sprites horizontally
+    local verticalSpacing = 35 -- Increased vertical spacing to make room for text
+    local scale = 3 -- Scale up sprites for better visibility
+
+    -- Draw semi-transparent background
+    love.graphics.setColor(0, 0, 0, 0.8)
+    love.graphics.rectangle("fill", 0, 0, self.width, self.height)
+
+    -- Draw title
+    love.graphics.setColor(1, 1, 1, 1)
+    love.graphics.print("SPRITE DEBUG VIEW (Press X to exit)", 10, 10)
+
+    -- Get the sprite mappings
+    local sprites = self.world.blockRegistry.sprites
+    local sortedKeys = {}
+
+    -- Collect and sort sprite keys for organized display
+    for key, _ in pairs(sprites) do
+        table.insert(sortedKeys, key)
+    end
+
+    -- Custom sort function to handle both string and numeric keys
+    table.sort(sortedKeys, function(a, b)
+        local typeA, typeB = type(a), type(b)
+
+        -- If both keys are the same type, compare directly
+        if typeA == typeB then
+            if typeA == "number" then
+                return a < b
+            else
+                return tostring(a) < tostring(b)
+            end
+        else
+            -- If different types, numbers come first
+            return typeA == "number"
+        end
+    end)
+
+    -- Draw each sprite
+    local row = 0
+    local col = 0
+    local startY = 50 -- Start below the title, increased for better spacing
+
+    for i, key in ipairs(sortedKeys) do
+        local sprite = sprites[key]
+        local x = 10 + col * (tileSize * scale + spacing)
+        local y = startY + row * (tileSize * scale + verticalSpacing)
+
+        -- Draw sprite if valid
+        if sprite and sprite.x and sprite.y then
+            -- Create a quad for this sprite
+            local quad = love.graphics.newQuad(
+                sprite.x * tileSize,
+                sprite.y * tileSize,
+                tileSize,
+                tileSize,
+                spriteSheet:getDimensions()
+            )
+
+            -- Draw sprite
+            love.graphics.setColor(1, 1, 1, 1)
+            love.graphics.draw(spriteSheet, quad, x, y, 0, scale, scale)
+
+            -- Draw sprite info
+            local spriteKey = tostring(key)
+            if type(key) == "number" then
+                -- For block types, show the block name
+                local block = self.world.blockRegistry:getBlock(key)
+                if block then
+                    spriteKey = block.name
+                end
+            end
+
+            -- Draw text with dark background for better readability
+            local textWidth = spriteKey:len() * 6 -- Approximate width
+            love.graphics.setColor(0, 0, 0, 0.7)
+            love.graphics.rectangle("fill", x, y + tileSize * scale + 2, textWidth, 14)
+
+            -- Draw the text
+            love.graphics.setColor(1, 1, 0.5, 1)
+            love.graphics.print(spriteKey, x, y + tileSize * scale + 2, 0, 0.8, 0.8)
+        end
+
+        -- Move to next column or row
+        col = col + 1
+        if col >= columns then
+            col = 0
+            row = row + 1
+        end
+    end
 end
 
 return Game
