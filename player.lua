@@ -30,10 +30,12 @@ function Player:new(world, x, y)
     self.blockTypes = {
         world.BLOCK_DIRT,
         world.BLOCK_STONE,
-        world.BLOCK_TREE,
         world.BLOCK_WOOD,
         world.BLOCK_WOOD_BACKGROUND,
-        world.BLOCK_LEAVES
+        world.BLOCK_STONE_BACKGROUND,
+        world.BLOCK_TREE,
+        world.BLOCK_LEAVES,
+        world.REMOVE_BACKGROUND
     }
     self.blockTypeIndex = 1
 

@@ -12,6 +12,8 @@ World.BLOCK_TREE = 3
 World.BLOCK_LEAVES = 4
 World.BLOCK_WOOD = 5  -- New wood material block
 World.BLOCK_WOOD_BACKGROUND = 6  -- Wood background that's non-solid
+World.REMOVE_BACKGROUND = 7  -- Special block type to explicitly remove background blocks
+World.BLOCK_STONE_BACKGROUND = 8  -- Stone background that's non-solid
 
 function World:new(width, height, tileSize)
     local self = setmetatable({}, World)
@@ -114,6 +116,24 @@ function World:new(width, height, tileSize)
         [World.BLOCK_STONE .. "_BOTTOM_LEFT"] = { x = 2, y = 9 },
         [World.BLOCK_STONE .. "_BOTTOM_RIGHT"] = { x = 4, y = 9 },
         [World.BLOCK_STONE .. "_LEFT_RIGHT"] = { x = 3, y = 11 },
+
+        -- Stone background (non-solid decorative version)
+        [World.BLOCK_STONE_BACKGROUND] = { x = 13, y = 13 },
+        [World.BLOCK_STONE_BACKGROUND .. "_TOP"] = { x = 13, y = 12 },
+        [World.BLOCK_STONE_BACKGROUND .. "_TOP_LEFT"] = { x = 13, y = 12 },
+        [World.BLOCK_STONE_BACKGROUND .. "_TOP_RIGHT"] = { x = 13, y = 12 },
+        [World.BLOCK_STONE_BACKGROUND .. "_TOP_BOTTOM"] = { x = 13, y = 13 },
+        [World.BLOCK_STONE_BACKGROUND .. "_BOTTOM"] = { x = 13, y = 13 },
+        [World.BLOCK_STONE_BACKGROUND .. "_BOTTOM_LEFT"] = { x = 13, y = 13 },
+        [World.BLOCK_STONE_BACKGROUND .. "_BOTTOM_RIGHT"] = { x = 13, y = 13 },
+        [World.BLOCK_STONE_BACKGROUND .. "_LEFT_RIGHT"] = { x = 13, y = 13 },
+        [World.BLOCK_STONE_BACKGROUND .. "_MIDDLE"] = { x = 13, y = 13 },
+        [World.BLOCK_STONE_BACKGROUND .. "_LEFT"] = { x = 13, y = 13 },
+        [World.BLOCK_STONE_BACKGROUND .. "_RIGHT"] = { x = 13, y = 13 },
+
+
+
+
     }
     self.blocks = {
         [World.BLOCK_AIR] = { name = "Air", color = {0, 0, 0, 0}, solid = false, sprite = nil },
@@ -152,6 +172,19 @@ function World:new(width, height, tileSize)
             color = {0.1, 0.6, 0.1, 1},
             solid = false,
             sprite = self.sprites[World.BLOCK_LEAVES]
+        },
+        [World.REMOVE_BACKGROUND] = {
+            name = "Remove Background",
+            color = {0.8, 0.8, 1, 0.3}, -- Light blue tint to represent "background eraser"
+            solid = false,
+            isBackgroundEraser = true,
+            sprite = nil
+        },
+        [World.BLOCK_STONE_BACKGROUND] = {
+            name = "Stone Background",
+            color = {0.5, 0.5, 0.5, 0.8},
+            solid = false,
+            sprite = self.sprites[World.BLOCK_STONE_BACKGROUND]
         },
     }
 
@@ -239,6 +272,12 @@ function World:generate()
 
         -- Fill ground
         for y = groundHeight, self.height do
+            -- First place background stone behind everything
+            -- Direct access to backgroundGrid for better performance
+            if y >= 1 and y <= self.height and x >= 1 and x <= self.width then
+                self.backgroundGrid[y][x] = World.BLOCK_STONE_BACKGROUND
+            end
+
             if y == groundHeight then
                 -- Top layer is dirt with grass
                 self:setBlock(x, y, World.BLOCK_DIRT)
@@ -402,8 +441,13 @@ function World:placeBlock(x, y, blockType)
 
     -- Check if in bounds
     if gridX >= 1 and gridX <= self.width and gridY >= 1 and gridY <= self.height then
+        -- Special case for background air - explicitly removes background blocks
+        if blockType == World.REMOVE_BACKGROUND then
+            self.backgroundGrid[gridY][gridX] = World.BLOCK_AIR
+            return true
+
         -- Determine which layer to use based on block solidity
-        if self.blocks[blockType] and not self.blocks[blockType].solid then
+        elseif self.blocks[blockType] and not self.blocks[blockType].solid then
             -- Non-solid blocks go to background layer
             -- Can place regardless of what's in foreground
             self.backgroundGrid[gridY][gridX] = blockType
@@ -421,21 +465,34 @@ function World:placeBlock(x, y, blockType)
     return false
 end
 
-function World:removeBlock(x, y)
+function World:removeBlock(x, y, targetLayer)
     -- Convert world coordinates to grid indices
     local gridX = math.floor(x / self.tileSize) + 1
     local gridY = math.floor(y / self.tileSize) + 1
 
     -- Check if in bounds
     if gridX >= 1 and gridX <= self.width and gridY >= 1 and gridY <= self.height then
-        -- First try to remove from foreground if it's not air
-        if self.foregroundGrid[gridY][gridX] ~= World.BLOCK_AIR then
-            self.foregroundGrid[gridY][gridX] = World.BLOCK_AIR
-            return true
-        -- Then try to remove from background if it's not air
-        elseif self.backgroundGrid[gridY][gridX] ~= World.BLOCK_AIR then
-            self.backgroundGrid[gridY][gridX] = World.BLOCK_AIR
-            return true
+        -- If a specific layer is targeted, only remove from that layer
+        if targetLayer == "background" then
+            if self.backgroundGrid[gridY][gridX] ~= World.BLOCK_AIR then
+                self.backgroundGrid[gridY][gridX] = World.BLOCK_AIR
+                return true
+            end
+        elseif targetLayer == "foreground" then
+            if self.foregroundGrid[gridY][gridX] ~= World.BLOCK_AIR then
+                self.foregroundGrid[gridY][gridX] = World.BLOCK_AIR
+                return true
+            end
+        else
+            -- Default behavior (no layer specified): try foreground first, then background
+            if self.foregroundGrid[gridY][gridX] ~= World.BLOCK_AIR then
+                self.foregroundGrid[gridY][gridX] = World.BLOCK_AIR
+                return true
+            -- Then try to remove from background if it's not air
+            elseif self.backgroundGrid[gridY][gridX] ~= World.BLOCK_AIR then
+                self.backgroundGrid[gridY][gridX] = World.BLOCK_AIR
+                return true
+            end
         end
     end
 
