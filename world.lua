@@ -195,8 +195,8 @@ function World:new(width, height, tileSize)
             self.blockQuads[blockType] = love.graphics.newQuad(
                 block.sprite.x * self.tilesetSize,
                 block.sprite.y * self.tilesetSize,
-                self.tilesetSize + 1,
-                self.tilesetSize + 1,
+                self.tilesetSize,
+                self.tilesetSize,
                 self.spriteSheet:getDimensions()
             )
         end
@@ -218,8 +218,8 @@ function World:new(width, height, tileSize)
                     self.blockQuads[blockVariant] = love.graphics.newQuad(
                         self.sprites[blockVariant].x * self.tilesetSize,
                         self.sprites[blockVariant].y * self.tilesetSize,
-                        self.tilesetSize +1,
-                        self.tilesetSize +1,
+                        self.tilesetSize,
+                        self.tilesetSize,
                         self.spriteSheet:getDimensions()
                     )
                 end
