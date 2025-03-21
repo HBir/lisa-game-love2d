@@ -322,6 +322,9 @@ function Game:update(dt)
     -- Update landing particles
     self:updateLandingParticles(dt)
 
+    -- Update save message
+    self:updateSaveMessage(dt)
+
     -- Update mouse position
     self.mouseX, self.mouseY = love.mouse.getPosition()
 
@@ -650,6 +653,26 @@ function Game:drawUI()
     local labelX = 10
     local labelY = self.height - blockSize - margin - 20
 
+    -- Draw save/load message if present
+    if self.saveMessage then
+        -- Position message at top center of screen
+        local font = love.graphics.getFont()
+        local textWidth = font:getWidth(self.saveMessage.text)
+        local x = (self.width - textWidth) / 2
+        local y = 40
+
+        -- Draw a semi-transparent background for better readability
+        love.graphics.setColor(0, 0, 0, 0.7)
+        love.graphics.rectangle("fill", x - 10, y - 5, textWidth + 20, 30)
+
+        -- Draw the message text
+        love.graphics.setColor(self.saveMessage.color)
+        love.graphics.print(self.saveMessage.text, x, y)
+
+        -- Reset color
+        love.graphics.setColor(1, 1, 1, 1)
+    end
+
     -- Draw block preview
     love.graphics.setColor(1, 1, 1, 1)
     if self.world.blockQuads[blockType] then
@@ -677,13 +700,9 @@ function Game:drawUI()
     love.graphics.setColor(0, 0, 0, 0.5)
     love.graphics.rectangle("line", labelX, labelY + 20, blockSize, blockSize)
 
-    -- Reset color
-    love.graphics.setColor(1, 1, 1, 1)
-
     -- Draw controls help
-    -- love.graphics.print("Mouse Wheel: Change Block Type", labelX + blockSize + margin, labelY)
-    -- love.graphics.print("Left Click: Remove Block", labelX + blockSize + margin, labelY + 20)
-    -- love.graphics.print("Right Click: Place Block", labelX + blockSize + margin, labelY + 40)
+    love.graphics.setColor(1, 1, 1, 0.7)
+    love.graphics.print("F5: Save World  |  F9: Load World", self.width - 250, 10)
 
     -- Draw block selection hotbar at the bottom of the screen
     self:drawBlockHotbar()
@@ -756,6 +775,16 @@ end
 function Game:keypressed(key)
     if key == "escape" then
         self.paused = not self.paused
+    end
+
+    -- Save world with F5
+    if key == "f5" then
+        self:saveWorld()
+    end
+
+    -- Load world with F9
+    if key == "f9" then
+        self:loadWorld()
     end
 
     -- Number keys 1-5 for selecting block types
@@ -1032,6 +1061,95 @@ function Game:emitLandingParticles(count, intensity)
         system = newParticleSystem,
         timeRemaining = 1.0  -- 1 second lifetime for landing particles
     })
+end
+
+-- Save the current world state to a file
+function Game:saveWorld()
+    -- Create a saves directory if it doesn't exist
+    os.execute("mkdir -p saves")
+
+    -- Generate a filename based on current date and time
+    local filename = "saves/world_" .. os.date("%Y%m%d_%H%M%S") .. ".sav"
+
+    -- Save the world
+    local success = self.world:saveWorld(filename)
+
+    -- Show a message to the player
+    if success then
+        print("World saved to " .. filename)
+        self.saveMessage = {
+            text = "World saved!",
+            timer = 3, -- Display for 3 seconds
+            color = {0, 1, 0, 1} -- Green color
+        }
+    else
+        print("Failed to save world.")
+        self.saveMessage = {
+            text = "Save failed!",
+            timer = 3,
+            color = {1, 0, 0, 1} -- Red color
+        }
+    end
+end
+
+-- Load a world from the most recent save file
+function Game:loadWorld()
+    -- Get a list of save files
+    local saveFiles = {}
+    local dir = io.popen('ls -1 saves/*.sav 2>/dev/null')
+    if dir then
+        for file in dir:lines() do
+            table.insert(saveFiles, file)
+        end
+        dir:close()
+    end
+
+    -- If no save files found
+    if #saveFiles == 0 then
+        print("No save files found.")
+        self.saveMessage = {
+            text = "No save files found!",
+            timer = 3,
+            color = {1, 0.5, 0, 1} -- Orange color
+        }
+        return
+    end
+
+    -- Sort files by name (assuming yyyy-mm-dd_hhmmss format, this will sort by date)
+    table.sort(saveFiles)
+
+    -- Get the most recent save file (last in the sorted list)
+    local filename = saveFiles[#saveFiles]
+
+    -- Load the world
+    local success = self.world:loadWorld(filename)
+
+    -- Show a message to the player
+    if success then
+        print("World loaded from " .. filename)
+        self.saveMessage = {
+            text = "World loaded!",
+            timer = 3,
+            color = {0, 1, 0, 1} -- Green color
+        }
+    else
+        print("Failed to load world from " .. filename)
+        self.saveMessage = {
+            text = "Load failed!",
+            timer = 3,
+            color = {1, 0, 0, 1} -- Red color
+        }
+    end
+end
+
+-- Update the save message timer
+function Game:updateSaveMessage(dt)
+    if self.saveMessage then
+        self.saveMessage.timer = self.saveMessage.timer - dt
+        if self.saveMessage.timer <= 0 then
+            self.saveMessage = nil
+        end
+    end
 end
 
 return Game

@@ -715,4 +715,105 @@ function World:isSolid(x, y)
     return self.blocks[blockType] and self.blocks[blockType].solid
 end
 
+-- Save the current world state to a file
+function World:saveWorld(filename)
+    -- Create a table with all the data we want to save
+    local saveData = {
+        width = self.width,
+        height = self.height,
+        tileSize = self.tileSize,
+        worldSeed = self.worldSeed,
+        foregroundGrid = self.foregroundGrid,
+        backgroundGrid = self.backgroundGrid
+    }
+
+    -- Convert the table to a string
+    local serialized = "return " .. self:serializeTable(saveData)
+
+    -- Write to file
+    local file, errorMsg = io.open(filename, "w")
+    if not file then
+        print("Error saving world: " .. (errorMsg or "unknown error"))
+        return false
+    end
+
+    file:write(serialized)
+    file:close()
+
+    return true
+end
+
+-- Load a world from a saved file
+function World:loadWorld(filename)
+    -- Check if file exists
+    local file, errorMsg = io.open(filename, "r")
+    if not file then
+        print("Error loading world: " .. (errorMsg or "File not found"))
+        return false
+    end
+
+    -- Read the file content
+    local content = file:read("*all")
+    file:close()
+
+    -- Load the data
+    local loadFunc, errorMsg = loadstring(content)
+    if not loadFunc then
+        print("Error parsing save file: " .. (errorMsg or "unknown error"))
+        return false
+    end
+
+    -- Execute the function to get the data
+    local saveData = loadFunc()
+
+    -- Update the world with loaded data
+    self.width = saveData.width
+    self.height = saveData.height
+    self.tileSize = saveData.tileSize
+    self.worldSeed = saveData.worldSeed
+    self.foregroundGrid = saveData.foregroundGrid
+    self.backgroundGrid = saveData.backgroundGrid
+
+    -- For backward compatibility
+    self.grid = self.foregroundGrid
+
+    return true
+end
+
+-- Helper function to serialize a table to a string
+function World:serializeTable(tbl, indent)
+    if not indent then indent = 0 end
+    local result = "{\n"
+
+    for k, v in pairs(tbl) do
+        -- Indent for readability
+        result = result .. string.rep("  ", indent + 1)
+
+        -- Handle the key
+        if type(k) == "number" then
+            result = result .. "[" .. k .. "] = "
+        elseif type(k) == "string" then
+            result = result .. "[\"" .. k .. "\"] = "
+        else
+            result = result .. "[" .. tostring(k) .. "] = "
+        end
+
+        -- Handle the value
+        if type(v) == "table" then
+            result = result .. self:serializeTable(v, indent + 1)
+        elseif type(v) == "string" then
+            result = result .. "\"" .. v .. "\""
+        else
+            result = result .. tostring(v)
+        end
+
+        result = result .. ",\n"
+    end
+
+    -- Close the table
+    result = result .. string.rep("  ", indent) .. "}"
+
+    return result
+end
+
 return World
