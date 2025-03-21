@@ -32,6 +32,16 @@ function Game:new()
     -- NPC management
     self.npcs = {}  -- Table to store all NPCs
 
+    -- LISA easter egg tracking
+    self.lisaSequence = {
+        pattern = {"l", "i", "s", "a"},
+        currentIndex = 0,
+        displayTimer = 0
+    }
+
+    -- Firework particles
+    self.fireworkParticles = {}
+
     return self
 end
 
@@ -287,6 +297,60 @@ function Game:initParticleSystems()
         prevVelocityY = 0,     -- Player's velocity on previous frame
         landingParticles = {}  -- Active landing particle systems
     }
+
+    -- Create firework particle system
+    self:initFireworkParticleSystem()
+end
+
+-- Initialize the firework particle system
+function Game:initFireworkParticleSystem()
+    -- Base firework particle system
+    self.fireworkBase = love.graphics.newParticleSystem(love.graphics.newCanvas(4, 4), 500)
+
+    -- Draw a simple particle on the canvas
+    love.graphics.setCanvas(self.fireworkBase:getTexture())
+    love.graphics.setColor(1, 1, 1, 1)
+    love.graphics.rectangle("fill", 0, 0, 4, 4)
+    love.graphics.setCanvas()
+
+    -- Configure the base firework system
+    self.fireworkBase:setParticleLifetime(0.5, 1.5)
+    self.fireworkBase:setEmissionRate(0)  -- Only emit when triggered
+    self.fireworkBase:setSizeVariation(0.5)
+    self.fireworkBase:setSizes(0.8, 0.6, 0.4, 0.2)
+    self.fireworkBase:setSpeed(100, 300)
+    self.fireworkBase:setDirection(-math.pi/2)  -- Up
+    self.fireworkBase:setSpread(math.pi/8)
+    self.fireworkBase:setLinearAcceleration(0, 200, 0, 300)  -- Gravity
+    self.fireworkBase:setColors(
+        1, 1, 1, 1,      -- White
+        1, 0.8, 0, 1,    -- Yellow/orange
+        1, 0.4, 0, 0.8   -- Orange/red fade
+    )
+
+    -- Explosion particle template (will be cloned when needed)
+    self.fireworkExplosion = love.graphics.newParticleSystem(love.graphics.newCanvas(3, 3), 300)
+
+    -- Draw a simple particle on the canvas
+    love.graphics.setCanvas(self.fireworkExplosion:getTexture())
+    love.graphics.setColor(1, 1, 1, 1)
+    love.graphics.rectangle("fill", 0, 0, 3, 3)
+    love.graphics.setCanvas()
+
+    -- Configure the explosion
+    self.fireworkExplosion:setParticleLifetime(0.3, 1.5)
+    self.fireworkExplosion:setEmissionRate(0)
+    self.fireworkExplosion:setSizeVariation(0.5)
+    self.fireworkExplosion:setSizes(0.8, 0.6, 0.4, 0.1)
+    self.fireworkExplosion:setSpeed(50, 200)
+    self.fireworkExplosion:setDirection(0)
+    self.fireworkExplosion:setSpread(math.pi * 2)  -- 360 degrees
+    self.fireworkExplosion:setLinearAcceleration(0, 100, 0, 200)  -- Gravity
+    self.fireworkExplosion:setLinearDamping(0.5)
+
+    -- Sparkle effect
+    self.fireworkExplosion:setSpin(-2, 2)
+    self.fireworkExplosion:setSpinVariation(1.0)
 end
 
 function Game:update(dt)
@@ -321,6 +385,9 @@ function Game:update(dt)
 
     -- Update landing particles
     self:updateLandingParticles(dt)
+
+    -- Update firework particles
+    self:updateFireworkParticles(dt)
 
     -- Update save message
     self:updateSaveMessage(dt)
@@ -527,6 +594,46 @@ function Game:updateLandingParticles(dt)
     end
 end
 
+function Game:updateFireworkParticles(dt)
+    local i = 1
+    while i <= #self.fireworkParticles do
+        local firework = self.fireworkParticles[i]
+        firework.system:update(dt)
+        firework.timeRemaining = firework.timeRemaining - dt
+
+        -- For launch type, check if we should create an explosion
+        if firework.type == "launch" and not firework.explosionCreated then
+            -- Get the current particle count
+            local count = firework.system:getCount()
+
+            -- If particles are mostly gone or timer is low, trigger explosion
+            if (count < 2 or firework.timeRemaining < 0.8) and firework.timeRemaining > 0.1 then
+                -- Modified to explode at a lower height (reduced from 100-200 range to 50-100)
+                self:createExplosion(firework.x, firework.y - 50 - math.random(50), firework.explosionColors)
+                firework.explosionCreated = true
+            end
+        end
+
+        -- Remove expired particle systems
+        if firework.timeRemaining <= 0 and firework.system:getCount() == 0 then
+            table.remove(self.fireworkParticles, i)
+        else
+            i = i + 1
+        end
+    end
+
+    -- Update the LISA sequence display timer
+    if self.lisaSequence.displayTimer > 0 then
+        self.lisaSequence.displayTimer = self.lisaSequence.displayTimer - dt
+        if self.lisaSequence.displayTimer <= 0 then
+            -- Only reset the sequence when the timer expires
+            -- This means the completed sequence (including the "A") will stay visible
+            -- for the full duration of displayTimer
+            self.lisaSequence.currentIndex = 0
+        end
+    end
+end
+
 function Game:draw()
     -- Clear screen with default color (will be covered by background)
     love.graphics.clear(0, 0, 0)
@@ -563,6 +670,12 @@ function Game:draw()
     for _, particleSystem in ipairs(self.playerTracking.landingParticles) do
         love.graphics.setColor(1, 1, 1, 1)
         love.graphics.draw(particleSystem.system, 0, 0)
+    end
+
+    -- Draw firework particles
+    for _, firework in ipairs(self.fireworkParticles) do
+        love.graphics.setColor(1, 1, 1, 1)
+        love.graphics.draw(firework.system, 0, 0)
     end
 
     -- Draw NPCs (behind or in front of player based on position)
@@ -628,6 +741,9 @@ function Game:draw()
 
     -- Draw the UI on top (fixed position, not affected by camera)
     self:drawUI()
+
+    -- Draw LISA sequence progress
+    self:drawLisaProgress()
 end
 
 -- Function to draw all NPCs
@@ -772,6 +888,59 @@ function Game:drawBlockHotbar()
     love.graphics.setLineWidth(1)
 end
 
+function Game:drawLisaProgress()
+    -- Only display the progress if the sequence has been started (at least "L" pressed)
+    if self.lisaSequence.displayTimer > 0 and self.lisaSequence.currentIndex > 0 then
+        local sequence = "LISA"
+        local font = love.graphics.getFont()
+        local letterSpacing = 40  -- Increased from 30 to 40 for more space between letters
+        local totalWidth = letterSpacing * (#sequence - 1) + font:getWidth(sequence) * 2  -- Adjusted for larger letters
+        local x = (self.width - totalWidth) / 2
+        local y = 470
+
+        -- Draw a semi-transparent background for better visibility
+        love.graphics.setColor(0, 0, 0, 0.6)
+        love.graphics.rectangle("fill", x - 20, y - 10, totalWidth, 60, 10, 10)
+
+        for i = 1, #sequence do
+            local letter = sequence:sub(i, i)
+            local letterX = x + (i - 1) * letterSpacing
+
+            if i <= self.lisaSequence.currentIndex then
+                -- Draw completed letters in bright yellow (more visible than green)
+                love.graphics.setColor(1, 0.9, 0.2, 1)  -- Bright yellow
+
+                -- Add glow effect for completed letters
+                love.graphics.setColor(1, 0.9, 0.2, 0.3)  -- Transparent yellow for glow
+                love.graphics.circle("fill", letterX + font:getWidth(letter), y + 15, 20)
+
+                -- Draw the actual letter
+                love.graphics.setColor(1, 0.9, 0.2, 1)  -- Bright yellow
+            else
+                -- Draw pending letters in white/silver (more visible than gray)
+                love.graphics.setColor(0.9, 0.9, 1, 0.8)  -- Bright silver/white
+            end
+
+            -- Draw letter with larger scaling (increased from 1.5/1.0 to 2.0/1.5)
+            local scale = i <= self.lisaSequence.currentIndex and 2.0 or 1.5
+            love.graphics.print(letter, letterX, y, 0, scale, scale)
+
+            -- Draw a subtle outline for better contrast against any background
+            if i <= self.lisaSequence.currentIndex then
+                love.graphics.setColor(0.5, 0.5, 0, 0.5)  -- Dark yellow outline
+            else
+                love.graphics.setColor(0.1, 0.1, 0.2, 0.5)  -- Dark blue/black outline
+            end
+            love.graphics.setLineWidth(2)
+            love.graphics.print(letter, letterX + 1, y + 1, 0, scale, scale)
+            love.graphics.setLineWidth(1)
+        end
+
+        -- Reset color
+        love.graphics.setColor(1, 1, 1, 1)
+    end
+end
+
 function Game:keypressed(key)
     if key == "escape" then
         self.paused = not self.paused
@@ -786,6 +955,9 @@ function Game:keypressed(key)
     if key == "f9" then
         self:loadWorld()
     end
+
+    -- Check for LISA sequence
+    self:checkLisaSequence(key)
 
     -- Number keys 1-5 for selecting block types
     local num = tonumber(key)
@@ -1150,6 +1322,143 @@ function Game:updateSaveMessage(dt)
             self.saveMessage = nil
         end
     end
+end
+
+-- Check if the key is part of the LISA sequence
+function Game:checkLisaSequence(key)
+    local nextExpectedKey = self.lisaSequence.pattern[self.lisaSequence.currentIndex + 1]
+
+    -- If the key matches the next expected key in the sequence
+    if key == nextExpectedKey then
+        -- Increment the index
+        self.lisaSequence.currentIndex = self.lisaSequence.currentIndex + 1
+
+        -- Reset the display timer
+        self.lisaSequence.displayTimer = 3
+
+        -- If completed the sequence
+        if self.lisaSequence.currentIndex == #self.lisaSequence.pattern then
+            -- Launch firework
+            self:launchFirework()
+
+            -- Set a longer display time (4 seconds instead of 3) for the completed sequence
+            self.lisaSequence.displayTimer = 4
+
+            -- LISA sequence stays visible, but will be reset for next input
+            -- We don't reset the currentIndex to 0 immediately, this will be done after timer expires
+        end
+    elseif key == self.lisaSequence.pattern[1] then
+        -- If it's the first key in the sequence, start the sequence
+        self.lisaSequence.currentIndex = 1
+        self.lisaSequence.displayTimer = 3
+    else
+        -- Wrong key, reset the sequence only if we had started the sequence
+        if self.lisaSequence.currentIndex > 0 then
+            self.lisaSequence.currentIndex = 0
+            -- Keep the display up briefly to show the reset
+            self.lisaSequence.displayTimer = 1
+        end
+    end
+end
+
+-- Launch a firework from the player's position
+function Game:launchFirework()
+    -- Clone the base firework system
+    local newFirework = self.fireworkBase:clone()
+
+    -- Position at player's position, slightly above
+    local launchX = self.player.x
+    local launchY = self.player.y - self.player.height/2
+
+    newFirework:setPosition(launchX, launchY)
+
+    -- Emit a few particles for the launch trail
+    newFirework:emit(10)
+
+    -- Create and track the firework
+    table.insert(self.fireworkParticles, {
+        system = newFirework,
+        type = "launch",
+        x = launchX,
+        y = launchY,
+        timeRemaining = 1.5,
+        explosionCreated = false,
+        explosionColors = self:getRandomExplosionColors()
+    })
+
+    -- Play a sound effect if available
+    -- if self.fireworkSound then
+    --     self.fireworkSound:play()
+    -- end
+end
+
+-- Get random colors for the firework explosion
+function Game:getRandomExplosionColors()
+    -- Choose a random color scheme
+    local colorSchemes = {
+        -- Red/pink
+        {
+            {1, 0.2, 0.2, 1},    -- Start
+            {1, 0.4, 0.4, 0.7},  -- Mid
+            {1, 0.6, 0.6, 0.3}   -- End
+        },
+        -- Blue/cyan
+        {
+            {0.2, 0.4, 1, 1},
+            {0.4, 0.6, 1, 0.7},
+            {0.6, 0.8, 1, 0.3}
+        },
+        -- Green/yellow
+        {
+            {0.2, 1, 0.3, 1},
+            {0.5, 1, 0.5, 0.7},
+            {0.7, 1, 0.3, 0.3}
+        },
+        -- Purple/pink
+        {
+            {0.8, 0.2, 1, 1},
+            {0.9, 0.4, 1, 0.7},
+            {1, 0.6, 1, 0.3}
+        },
+        -- Gold/yellow
+        {
+            {1, 0.8, 0.1, 1},
+            {1, 0.9, 0.3, 0.7},
+            {1, 1, 0.5, 0.3}
+        }
+    }
+
+    return colorSchemes[math.random(#colorSchemes)]
+end
+
+-- Create an explosion effect at the specified position
+function Game:createExplosion(x, y, colors)
+    -- Clone the explosion system
+    local explosion = self.fireworkExplosion:clone()
+
+    -- Position the explosion
+    explosion:setPosition(x, y)
+
+    -- Set colors
+    if colors then
+        explosion:setColors(
+            colors[1][1], colors[1][2], colors[1][3], colors[1][4],
+            colors[2][1], colors[2][2], colors[2][3], colors[2][4],
+            colors[3][1], colors[3][2], colors[3][3], colors[3][4]
+        )
+    end
+
+    -- Emit particles in all directions
+    explosion:emit(100 + math.random(100))
+
+    -- Add to the active particles
+    table.insert(self.fireworkParticles, {
+        system = explosion,
+        type = "explosion",
+        x = x,
+        y = y,
+        timeRemaining = 1.5
+    })
 end
 
 return Game
