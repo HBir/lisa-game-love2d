@@ -605,7 +605,7 @@ function ParticleSystem:emitBlockBreakParticles(worldX, worldY, blockType)
     newParticleSystem:setPosition(pixelX, pixelY)
 
     -- Set color based on block type
-    local blockInfo = self.world.blocks[blockType]
+    local blockInfo = self.world.blockRegistry.blocks[blockType]
     if blockInfo then
         local r, g, b = unpack(blockInfo.color or {0.8, 0.8, 0.8})
         -- Set gradient of colors from full color to faded
@@ -655,7 +655,7 @@ function ParticleSystem:emitBlockPlaceParticles(worldX, worldY, blockType)
     local newParticleSystem = self.blockPlaceParticles:clone()
 
     -- Set color based on block type
-    local blockInfo = self.world.blocks[blockType]
+    local blockInfo = self.world.blockRegistry.blocks[blockType]
     if blockInfo then
         local r, g, b = unpack(blockInfo.color or {0.8, 0.8, 0.8})
         -- Set gradient of colors from faded to full color then faded

@@ -22,6 +22,7 @@ function Game:new()
 
     -- Debug options
     self.showSpriteDebug = false
+    self.debugPage = 0  -- Track which debug page is displayed (0 = off, 1 = page 1, 2 = page 2)
 
     return self
 end
@@ -246,8 +247,8 @@ function Game:draw()
     self.ui:drawLisaProgress()
 
     -- Draw sprite debug view if enabled (should be on top of everything)
-    if self.showSpriteDebug then
-        self.ui:drawSpriteDebug()
+    if self.debugPage > 0 then
+        self.ui:drawSpriteDebug(self.debugPage)
     end
 end
 

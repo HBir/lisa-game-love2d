@@ -1,4 +1,5 @@
 -- World.lua - Main module that coordinates world functionality
+
 local BlockRegistry = require("BlockRegistry")
 local GridSystem = require("GridSystem")
 local AutoTiler = require("AutoTiler")
@@ -9,16 +10,6 @@ local WorldSaveManager = require("WorldSaveManager")
 local World = {}
 World.__index = World
 
--- Block types
-World.BLOCK_AIR = 0
-World.BLOCK_DIRT = 1
-World.BLOCK_STONE = 2
-World.BLOCK_TREE = 3
-World.BLOCK_LEAVES = 4
-World.BLOCK_WOOD = 5  -- New wood material block
-World.BLOCK_WOOD_BACKGROUND = 6  -- Wood background that's non-solid
-World.REMOVE_BACKGROUND = 7  -- Special block type to explicitly remove background blocks
-World.BLOCK_STONE_BACKGROUND = 8  -- Stone background that's non-solid
 
 function World:new(width, height, tileSize)
     local self = setmetatable({}, World)
@@ -52,12 +43,14 @@ function World:new(width, height, tileSize)
     self.foregroundGrid = self.gridSystem.foregroundGrid
     self.backgroundGrid = self.gridSystem.backgroundGrid
     self.grid = self.foregroundGrid
-    self.blocks = self.blockRegistry.blocks
-    self.blockQuads = self.blockRegistry.blockQuads
-    self.spriteSheet = self.blockRegistry.spriteSheet
-    self.tilesetSize = self.blockRegistry.tilesetSize
+    -- self.blocks = self.blockRegistry.blocks
+    -- self.blockQuads = self.blockRegistry.blockQuads
+    -- self.spriteSheet = self.blockRegistry.spriteSheet
+    -- self.tilesetSize = self.blockRegistry.tilesetSize
 
     -- Copy block type constants to the world object for external access
+    -- This is for backwards compatibility and will be deprecated in the future
+    -- Code should use self.blockRegistry.BLOCK_X constants directly
     for key, value in pairs(self.blockRegistry) do
         if type(key) == "string" and key:match("^BLOCK_") then
             self[key] = value

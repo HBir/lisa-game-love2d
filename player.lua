@@ -649,7 +649,7 @@ function Player:selectBlockType(index)
         self.selectedBlockType = self.blockTypes[self.blockTypeIndex]
 
         -- Update notification with block name
-        local blockName = self.world.blocks[self.selectedBlockType].name
+        local blockName = self.world.blockRegistry.blocks[self.selectedBlockType].name
         self.blockChangeNotification.text = "Selected: " .. blockName
         self.blockChangeNotification.timer = self.blockChangeNotification.duration
     end
@@ -663,7 +663,7 @@ function Player:nextBlockType()
     self.selectedBlockType = self.blockTypes[self.blockTypeIndex]
 
     -- Update notification with block name
-    local blockName = self.world.blocks[self.selectedBlockType].name
+    local blockName = self.world.blockRegistry.blocks[self.selectedBlockType].name
     self.blockChangeNotification.text = "Selected: " .. blockName
     self.blockChangeNotification.timer = self.blockChangeNotification.duration
 end
@@ -676,7 +676,7 @@ function Player:prevBlockType()
     self.selectedBlockType = self.blockTypes[self.blockTypeIndex]
 
     -- Update notification with block name
-    local blockName = self.world.blocks[self.selectedBlockType].name
+    local blockName = self.world.blockRegistry.blocks[self.selectedBlockType].name
     self.blockChangeNotification.text = "Selected: " .. blockName
     self.blockChangeNotification.timer = self.blockChangeNotification.duration
 end

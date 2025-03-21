@@ -10,8 +10,8 @@ BlockRegistry.BLOCK_TREE = 3
 BlockRegistry.BLOCK_LEAVES = 4
 BlockRegistry.BLOCK_WOOD = 5
 BlockRegistry.BLOCK_WOOD_BACKGROUND = 6
-BlockRegistry.REMOVE_BACKGROUND = 7
-BlockRegistry.BLOCK_STONE_BACKGROUND = 8
+BlockRegistry.BLOCK_STONE_BACKGROUND = 7
+BlockRegistry.REMOVE_BACKGROUND = 8
 
 function BlockRegistry:new()
     local self = setmetatable({}, BlockRegistry)

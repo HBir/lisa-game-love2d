@@ -56,7 +56,7 @@ function Inputs:handleBlockInteraction()
     if gridX ~= self.lastBlockX or gridY ~= self.lastBlockY then
         if self.isRemovingBlock then
             local blockType = world:getBlock(worldX, worldY)
-            if blockType ~= world.BLOCK_AIR then
+            if blockType ~= world.blockRegistry.BLOCK_AIR then
                 -- Create a block removal particle effect before removing the block
                 self.game:emitBlockBreakParticles(worldX, worldY, blockType)
                 world:removeBlock(worldX, worldY)
@@ -98,7 +98,10 @@ function Inputs:keypressed(key)
 
     -- Toggle sprite debug view with X
     if key == "x" then
-        game.showSpriteDebug = not game.showSpriteDebug
+        -- Cycle through debug pages: 0 (off) -> 1 (sprite page 1) -> 2 (sprite page 2) -> 3 (game stats) -> 0 (off)
+        game.debugPage = (game.debugPage + 1) % 4
+        -- For backward compatibility
+        game.showSpriteDebug = game.debugPage > 0
     end
 
     -- Check for LISA sequence
@@ -141,7 +144,7 @@ function Inputs:mousepressed(x, y, button)
         -- Handle block placement/removal
         if button == 1 then -- Left click
             local blockType = game.world:getBlock(worldX, worldY)
-            if blockType ~= game.world.BLOCK_AIR then
+            if blockType ~= game.world.blockRegistry.BLOCK_AIR then
                 -- Create a block removal particle effect before removing the block
                 game:emitBlockBreakParticles(worldX, worldY, blockType)
                 game.world:removeBlock(worldX, worldY)
