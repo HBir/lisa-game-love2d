@@ -201,6 +201,31 @@ function World:generate()
     -- Simple terrain generation with clean, distinct layers
     local baseGroundHeight = math.floor(self.height * 0.7)
 
+    -- Keep track of placed tree areas (including trunk width) to ensure proper spacing
+    local occupiedPositions = {}
+
+    -- Mark positions as occupied
+    local function markOccupied(startX, width)
+        -- Mark the tree position and a buffer zone around it
+        for i = startX-2, startX+width+1 do
+            occupiedPositions[i] = true
+        end
+    end
+
+    -- Check if a position is available for a tree with given width
+    local function canPlaceTreeAt(x, width)
+        -- Default width if not specified
+        width = width or 2
+
+        -- Check the tree position and buffer zone
+        for i = x-2, x+width+1 do
+            if occupiedPositions[i] then
+                return false
+            end
+        end
+        return true
+    end
+
     -- Generate terrain with smoother, less noisy features
     for x = 1, self.width do
         -- Create a varied terrain with a single, gentle sine wave
@@ -226,17 +251,58 @@ function World:generate()
             end
         end
 
-        -- Simple tree placement on flatter areas
-        if math.abs(heightOffset - (x > 1 and (baseGroundHeight + math.floor(math.sin((x-1) / 25) * 4)) - baseGroundHeight or 0)) == 0 then
-            -- Only place trees on flat ground and with lower density
-            if math.random() < 0.04 then
+        -- Tree placement with proper spacing
+        if math.abs(heightOffset - (x > 1 and (baseGroundHeight + math.floor(math.sin((x-1) / 25) * 4)) - baseGroundHeight or 0)) <= 1 then
+            -- Only try placing a tree if the position is available
+            if canPlaceTreeAt(x) and math.random() < 0.1 then
+                -- Determine trunk width for this tree
+                local trunkWidth = math.random() < 0.3 and 1 or 2
+
+                -- Generate the tree
                 self:generateTree(x, groundHeight)
 
-                -- Occasionally place a second tree nearby
-                if math.random() < 0.2 and x < self.width - 2 then
-                    self:generateTree(x + 2, groundHeight)
+                -- Mark this position as occupied
+                markOccupied(x, trunkWidth)
+
+                -- Try to place a second tree at a safe distance
+                local secondTreeX = x + 6  -- Greater spacing to ensure no overlap
+
+                if secondTreeX <= self.width and canPlaceTreeAt(secondTreeX) and math.random() < 0.4 then
+                    local secondTreeWidth = math.random() < 0.3 and 1 or 2
+                    self:generateTree(secondTreeX, groundHeight)
+                    markOccupied(secondTreeX, secondTreeWidth)
+
+                    -- Try for a third tree with proper spacing
+                    local thirdTreeX = secondTreeX + 6
+
+                    if thirdTreeX <= self.width and canPlaceTreeAt(thirdTreeX) and math.random() < 0.3 then
+                        self:generateTree(thirdTreeX, groundHeight)
+                        -- No need to mark as occupied since we're done with this pass
+                    end
                 end
             end
+        end
+    end
+
+    -- Add additional randomly placed trees with proper spacing
+    local attempts = math.floor(self.width * 0.15) -- Increased attempts for better distribution
+    local extraTreesPlaced = 0
+    local maxExtraTrees = math.floor(self.width * 0.05) -- 5% of width as extra trees
+
+    for i = 1, attempts do
+        if extraTreesPlaced >= maxExtraTrees then
+            break
+        end
+
+        local x = math.random(1, self.width)
+        local trunkWidth = math.random() < 0.3 and 1 or 2
+
+        -- Only place if there's enough space
+        if canPlaceTreeAt(x, trunkWidth) then
+            local groundHeight = math.floor(self.height * 0.7) + math.floor(math.sin(x / 25) * 4)
+            self:generateTree(x, groundHeight)
+            markOccupied(x, trunkWidth)
+            extraTreesPlaced = extraTreesPlaced + 1
         end
     end
 end
