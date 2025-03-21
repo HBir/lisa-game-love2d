@@ -8,8 +8,10 @@ World.__index = World
 World.BLOCK_AIR = 0
 World.BLOCK_DIRT = 1
 World.BLOCK_STONE = 2
-World.BLOCK_WOOD = 3
+World.BLOCK_TREE = 3
 World.BLOCK_LEAVES = 4
+World.BLOCK_WOOD = 5  -- New wood material block
+World.BLOCK_WOOD_BACKGROUND = 6  -- Wood background that's non-solid
 
 function World:new(width, height, tileSize)
     local self = setmetatable({}, World)
@@ -51,13 +53,19 @@ function World:new(width, height, tileSize)
         [World.BLOCK_DIRT .. "_BOTTOM"] = { x = 3, y = 1 },
 
 
-        [World.BLOCK_WOOD] = { x = 9, y = 18 },
-        [World.BLOCK_WOOD .. "_TOP_LEFT"] = { x = 9, y = 17 },
-        [World.BLOCK_WOOD .. "_LEFT"] = { x = 9, y = 17 },
-        [World.BLOCK_WOOD .. "_BOTTOM_LEFT"] = { x = 9, y = 17 },
-        [World.BLOCK_WOOD .. "_RIGHT"] = { x = 10, y = 17 },
-        [World.BLOCK_WOOD .. "_BOTTOM_RIGHT"] = { x = 10, y = 17 },
-        [World.BLOCK_WOOD .. "_TOP_RIGHT"] = { x = 10, y = 17 },
+        [World.BLOCK_TREE] = { x = 9, y = 18 },
+        [World.BLOCK_TREE .. "_TOP_LEFT"] = { x = 9, y = 17 },
+        [World.BLOCK_TREE .. "_LEFT"] = { x = 9, y = 17 },
+        [World.BLOCK_TREE .. "_BOTTOM_LEFT"] = { x = 9, y = 17 },
+        [World.BLOCK_TREE .. "_RIGHT"] = { x = 10, y = 17 },
+        [World.BLOCK_TREE .. "_BOTTOM_RIGHT"] = { x = 10, y = 17 },
+        [World.BLOCK_TREE .. "_TOP_RIGHT"] = { x = 10, y = 17 },
+
+        -- New wood material block (using plank sprite)
+        [World.BLOCK_WOOD] = { x = 8, y = 8 },
+
+        -- Wood background (non-solid decorative version)
+        [World.BLOCK_WOOD_BACKGROUND] = { x = 8, y = 13 },
 
         -- Base leaf sprite
         [World.BLOCK_LEAVES] = { x = 3, y = 15 },
@@ -103,11 +111,23 @@ function World:new(width, height, tileSize)
             solid = true,
             sprite = self.sprites[World.BLOCK_STONE]
         },
+        [World.BLOCK_TREE] = {
+            name = "Tree",
+            color = {0.6, 0.3, 0.1, 1},
+            solid = false,
+            sprite = self.sprites[World.BLOCK_TREE]
+        },
         [World.BLOCK_WOOD] = {
             name = "Wood",
-            color = {0.6, 0.3, 0.1, 1},
+            color = {0.8, 0.6, 0.4, 1},
             solid = true,
             sprite = self.sprites[World.BLOCK_WOOD]
+        },
+        [World.BLOCK_WOOD_BACKGROUND] = {
+            name = "Wood Background",
+            color = {0.7, 0.5, 0.3, 0.8},
+            solid = false,
+            sprite = self.sprites[World.BLOCK_WOOD_BACKGROUND]
         },
         [World.BLOCK_LEAVES] = {
             name = "Leaves",
@@ -192,7 +212,7 @@ function World:generateTree(x, y)
     -- Tree trunk
     local treeHeight = math.random(4, 6)
     for i = 1, treeHeight do
-        self:setBlock(x, y - i, World.BLOCK_WOOD)
+        self:setBlock(x, y - i, World.BLOCK_TREE)
     end
 
     -- Tree leaves
@@ -283,9 +303,9 @@ function World:getAutoTileVariant(x, y, blockType)
     local function isSameBlock(checkX, checkY)
         local block = self:getBlockAt(checkX, checkY)
 
-        -- Special case for leaves - wood connects with leaves
+        -- Special case for leaves - both tree and wood connect with leaves
         if blockType == World.BLOCK_LEAVES then
-            return block == World.BLOCK_LEAVES or block == World.BLOCK_WOOD
+            return block == World.BLOCK_LEAVES or block == World.BLOCK_TREE
         end
 
         return block == blockType

@@ -75,6 +75,9 @@ function Game:load()
     -- Initialize the player
     self.player = Player:new(self.world, startX, startY)
 
+    -- Attach player to world so NPCs can access it
+    self.world.player = self.player
+
     -- Initialize the camera
     self.camera = Camera:new(self.width, self.height, 1) -- Use scale factor of 1 instead of world.tileSize
     self.camera:follow(self.player)
