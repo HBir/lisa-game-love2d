@@ -16,18 +16,36 @@ World.BLOCK_WOOD_BACKGROUND = 6  -- Wood background that's non-solid
 function World:new(width, height, tileSize)
     local self = setmetatable({}, World)
 
+    -- Initialize with a random seed for consistent but varied world generation
+    math.randomseed(os.time())
+    self.worldSeed = math.random(1, 10000)
+    math.randomseed(self.worldSeed)
+
     self.width = width
     self.height = height
     self.tileSize = tileSize
 
-    -- Initialize the grid
-    self.grid = {}
+    -- Initialize two grid layers: foreground (solid blocks) and background (non-solid blocks)
+    -- Foreground layer: for solid blocks (main gameplay elements)
+    self.foregroundGrid = {}
     for y = 1, height do
-        self.grid[y] = {}
+        self.foregroundGrid[y] = {}
         for x = 1, width do
-            self.grid[y][x] = World.BLOCK_AIR
+            self.foregroundGrid[y][x] = World.BLOCK_AIR
         end
     end
+
+    -- Background layer: for non-solid decorative blocks
+    self.backgroundGrid = {}
+    for y = 1, height do
+        self.backgroundGrid[y] = {}
+        for x = 1, width do
+            self.backgroundGrid[y][x] = World.BLOCK_AIR
+        end
+    end
+
+    -- Keep a reference to the old grid for backward compatibility during transition
+    self.grid = self.foregroundGrid
 
     -- Load sprite sheet
     self.spriteSheet = love.graphics.newImage("assets/Tiles/Assets/Assets.png")
@@ -180,73 +198,117 @@ function World:new(width, height, tileSize)
 end
 
 function World:generate()
-    -- Simple terrain generation
-    local groundHeight = math.floor(self.height * 0.7)
+    -- Simple terrain generation with clean, distinct layers
+    local baseGroundHeight = math.floor(self.height * 0.7)
 
-    -- Generate terrain with Perlin noise
+    -- Generate terrain with smoother, less noisy features
     for x = 1, self.width do
-        -- Create a simple hill function
-        local heightOffset = math.floor(math.sin(x / 20) * 5)
-        local rockDepth = groundHeight + heightOffset + 3 -- Depth where dirt becomes stone
+        -- Create a varied terrain with a single, gentle sine wave
+        local heightOffset = math.floor(math.sin(x / 25) * 4)
+
+        -- Apply the height offset to create gentle hills
+        local groundHeight = baseGroundHeight + heightOffset
+
+        -- Keep a consistent rock depth
+        local rockDepth = groundHeight + 4
 
         -- Fill ground
-        for y = groundHeight + heightOffset, self.height do
-            if y == groundHeight + heightOffset then
-                -- Top layer is just dirt - we'll show it with grass in the draw function
+        for y = groundHeight, self.height do
+            if y == groundHeight then
+                -- Top layer is dirt with grass
                 self:setBlock(x, y, World.BLOCK_DIRT)
             elseif y < rockDepth then
+                -- Clean dirt layer without mixed deposits
                 self:setBlock(x, y, World.BLOCK_DIRT)
             else
+                -- Clean stone layer without mixed deposits
                 self:setBlock(x, y, World.BLOCK_STONE)
             end
         end
 
-        -- Randomly place trees
-        if math.random() < 0.05 then
-            self:generateTree(x, groundHeight + heightOffset)
-        end
-    end
-end
+        -- Simple tree placement on flatter areas
+        if math.abs(heightOffset - (x > 1 and (baseGroundHeight + math.floor(math.sin((x-1) / 25) * 4)) - baseGroundHeight or 0)) == 0 then
+            -- Only place trees on flat ground and with lower density
+            if math.random() < 0.04 then
+                self:generateTree(x, groundHeight)
 
-function World:generateTree(x, y)
-    -- Tree trunk
-    local treeHeight = math.random(4, 6)
-    for i = 1, treeHeight do
-        self:setBlock(x, y - i, World.BLOCK_TREE)
-    end
-
-    -- Tree leaves
-    local leafSize = 2
-    for ly = y - treeHeight - leafSize, y - treeHeight + leafSize do
-        for lx = x - leafSize, x + leafSize do
-            -- Don't overwrite existing blocks and stay in bounds
-            if lx >= 1 and lx <= self.width and ly >= 1 and ly <= self.height then
-                if self:getBlock(lx, ly) == World.BLOCK_AIR then
-                    self:setBlock(lx, ly, World.BLOCK_LEAVES)
+                -- Occasionally place a second tree nearby
+                if math.random() < 0.2 and x < self.width - 2 then
+                    self:generateTree(x + 2, groundHeight)
                 end
             end
         end
     end
 end
 
-function World:getBlock(x, y)
+function World:generateTree(x, y)
+    -- Tree trunk - place in the background layer since trees are non-solid
+    local treeHeight = math.random(4, 7) -- Simple height variation
+
+    -- Determine trunk width - only 1 or 2 blocks
+    local trunkWidth = math.random() < 0.3 and 1 or 2 -- 30% chance for 1-block, 70% chance for 2-block
+
+    -- Calculate trunk positions based on width
+    local trunkStartX = (trunkWidth == 1) and math.floor(x) or math.floor(x - 0.5)
+
+    -- Calculate where leaves will be placed
+    local leafSize = 2 -- Fixed leaf size
+    local leafCenter = y - treeHeight - 2 -- Center of leaf cluster
+
+    -- Place trunk blocks
+    for i = 1, treeHeight do
+        for w = 0, trunkWidth - 1 do
+            local gridX = trunkStartX + w
+            local gridY = math.floor(y - i)
+            if gridX >= 1 and gridX <= self.width and gridY >= 1 and gridY <= self.height then
+                self.backgroundGrid[gridY][gridX] = World.BLOCK_TREE
+            end
+        end
+    end
+
+    -- Place a cluster of leaves around the top of the trunk
+    for ly = leafCenter - leafSize, leafCenter + leafSize do
+        for lx = trunkStartX - leafSize, trunkStartX + trunkWidth - 1 + leafSize do
+            -- Don't overwrite existing blocks and stay in bounds
+            if lx >= 1 and lx <= self.width and ly >= 1 and ly <= self.height then
+                local gridX = math.floor(lx)
+                local gridY = math.floor(ly)
+
+                -- Only place leaves where there isn't already a tree trunk
+                if self.backgroundGrid[gridY][gridX] == World.BLOCK_AIR then
+                    self.backgroundGrid[gridY][gridX] = World.BLOCK_LEAVES
+                end
+            end
+        end
+    end
+end
+
+function World:getBlock(x, y, layer)
     -- Convert world coordinates to grid indices
     local gridX = math.floor(x / self.tileSize) + 1
     local gridY = math.floor(y / self.tileSize) + 1
 
     -- Check if in bounds
     if gridX >= 1 and gridX <= self.width and gridY >= 1 and gridY <= self.height then
-        return self.grid[gridY][gridX]
+        if layer == "background" then
+            return self.backgroundGrid[gridY][gridX]
+        else
+            return self.foregroundGrid[gridY][gridX]
+        end
     end
 
     -- Default to air for out of bounds
     return World.BLOCK_AIR
 end
 
-function World:getBlockAt(gridX, gridY)
+function World:getBlockAt(gridX, gridY, layer)
     -- Direct grid access with bounds checking
     if gridX >= 1 and gridX <= self.width and gridY >= 1 and gridY <= self.height then
-        return self.grid[gridY][gridX]
+        if layer == "background" then
+            return self.backgroundGrid[gridY][gridX]
+        else
+            return self.foregroundGrid[gridY][gridX]
+        end
     end
     return World.BLOCK_AIR
 end
@@ -258,7 +320,12 @@ function World:setBlock(x, y, blockType)
 
     -- Check if in bounds
     if gridX >= 1 and gridX <= self.width and gridY >= 1 and gridY <= self.height then
-        self.grid[gridY][gridX] = blockType
+        -- Determine which layer to use based on block solidity
+        if self.blocks[blockType] and not self.blocks[blockType].solid then
+            self.backgroundGrid[gridY][gridX] = blockType
+        else
+            self.foregroundGrid[gridY][gridX] = blockType
+        end
     end
 end
 
@@ -267,11 +334,22 @@ function World:placeBlock(x, y, blockType)
     local gridX = math.floor(x / self.tileSize) + 1
     local gridY = math.floor(y / self.tileSize) + 1
 
-    -- Check if in bounds and the spot is empty (air)
-    if gridX >= 1 and gridX <= self.width and gridY >= 1 and gridY <= self.height and
-       self.grid[gridY][gridX] == World.BLOCK_AIR then
-        self.grid[gridY][gridX] = blockType
-        return true
+    -- Check if in bounds
+    if gridX >= 1 and gridX <= self.width and gridY >= 1 and gridY <= self.height then
+        -- Determine which layer to use based on block solidity
+        if self.blocks[blockType] and not self.blocks[blockType].solid then
+            -- Non-solid blocks go to background layer
+            -- Can place regardless of what's in foreground
+            self.backgroundGrid[gridY][gridX] = blockType
+            return true
+        else
+            -- Solid blocks go to foreground layer
+            -- Can only place if the spot is empty (air)
+            if self.foregroundGrid[gridY][gridX] == World.BLOCK_AIR then
+                self.foregroundGrid[gridY][gridX] = blockType
+                return true
+            end
+        end
     end
 
     return false
@@ -282,18 +360,24 @@ function World:removeBlock(x, y)
     local gridX = math.floor(x / self.tileSize) + 1
     local gridY = math.floor(y / self.tileSize) + 1
 
-    -- Check if in bounds and the spot is not air
-    if gridX >= 1 and gridX <= self.width and gridY >= 1 and gridY <= self.height and
-       self.grid[gridY][gridX] ~= World.BLOCK_AIR then
-        self.grid[gridY][gridX] = World.BLOCK_AIR
-        return true
+    -- Check if in bounds
+    if gridX >= 1 and gridX <= self.width and gridY >= 1 and gridY <= self.height then
+        -- First try to remove from foreground if it's not air
+        if self.foregroundGrid[gridY][gridX] ~= World.BLOCK_AIR then
+            self.foregroundGrid[gridY][gridX] = World.BLOCK_AIR
+            return true
+        -- Then try to remove from background if it's not air
+        elseif self.backgroundGrid[gridY][gridX] ~= World.BLOCK_AIR then
+            self.backgroundGrid[gridY][gridX] = World.BLOCK_AIR
+            return true
+        end
     end
 
     return false
 end
 
 -- Helper function for determining the appropriate tile variant based on surroundings
-function World:getAutoTileVariant(x, y, blockType)
+function World:getAutoTileVariant(x, y, blockType, layer)
     -- If it's air, just return air
     if blockType == World.BLOCK_AIR then
         return tostring(blockType)
@@ -301,11 +385,11 @@ function World:getAutoTileVariant(x, y, blockType)
 
     -- For all blocks, check surrounding blocks of the same type
     local function isSameBlock(checkX, checkY)
-        local block = self:getBlockAt(checkX, checkY)
+        local block = self:getBlockAt(checkX, checkY, layer)
 
         -- Special case for leaves - both tree and wood connect with leaves
         if blockType == World.BLOCK_LEAVES then
-            return block == World.BLOCK_LEAVES or block == World.BLOCK_TREE
+            return block == World.BLOCK_LEAVES or block == World.BLOCK_TREE or block == World.BLOCK_WOOD
         end
 
         return block == blockType
@@ -410,10 +494,25 @@ function World:draw(camera)
     local endX = math.min(self.width, math.floor(x2 / self.tileSize) + 1)
     local endY = math.min(self.height, math.floor(y2 / self.tileSize) + 1)
 
-    -- Draw visible blocks
+    -- Draw background layer first
+    self:drawLayer(camera, startX, startY, endX, endY, "background")
+
+    -- Then draw foreground layer on top
+    self:drawLayer(camera, startX, startY, endX, endY, "foreground")
+
+    -- Reset color
+    love.graphics.setColor(1, 1, 1, 1)
+end
+
+-- Helper method to draw a specific layer
+function World:drawLayer(camera, startX, startY, endX, endY, layer)
+    local grid = layer == "background" and self.backgroundGrid or self.foregroundGrid
+    local alpha = layer == "background" and 0.9 or 1.0 -- Slightly less opacity for background
+
+    -- Draw visible blocks in this layer
     for y = startY, endY do
         for x = startX, endX do
-            local blockType = self.grid[y][x]
+            local blockType = grid[y][x]
 
             -- Skip air blocks
             if blockType ~= World.BLOCK_AIR then
@@ -422,10 +521,10 @@ function World:draw(camera)
                 local pixelY = (y - 1) * self.tileSize
 
                 -- Set color for the block (used for tinting or if no sprite)
-                love.graphics.setColor(1, 1, 1, 1)
+                love.graphics.setColor(1, 1, 1, alpha)
 
                 -- Get the variant of the block to use based on auto-tiling
-                local blockVariant = self:getAutoTileVariant(x, y, blockType)
+                local blockVariant = self:getAutoTileVariant(x, y, blockType, layer)
                 local quadToUse = self.blockQuads[blockVariant]
 
                 -- Draw using sprite if available
@@ -462,34 +561,34 @@ function World:draw(camera)
                         else
                             -- Fallback to colored rectangle
                             local block = self.blocks[blockType]
-                            love.graphics.setColor(block.color)
+                            local r, g, b, a = block.color[1], block.color[2], block.color[3], block.color[4] or 1
+                            love.graphics.setColor(r, g, b, a * alpha)
                             love.graphics.rectangle("fill", pixelX, pixelY, self.tileSize, self.tileSize)
 
                             -- Draw outline
-                            love.graphics.setColor(0, 0, 0, 0.3)
+                            love.graphics.setColor(0, 0, 0, 0.3 * alpha)
                             love.graphics.rectangle("line", pixelX, pixelY, self.tileSize, self.tileSize)
                         end
                     else
                         -- Fallback to colored rectangle if still no quad
                         local block = self.blocks[blockType]
-                        love.graphics.setColor(block.color)
+                        local r, g, b, a = block.color[1], block.color[2], block.color[3], block.color[4] or 1
+                        love.graphics.setColor(r, g, b, a * alpha)
                         love.graphics.rectangle("fill", pixelX, pixelY, self.tileSize, self.tileSize)
 
                         -- Draw outline
-                        love.graphics.setColor(0, 0, 0, 0.3)
+                        love.graphics.setColor(0, 0, 0, 0.3 * alpha)
                         love.graphics.rectangle("line", pixelX, pixelY, self.tileSize, self.tileSize)
                     end
                 end
             end
         end
     end
-
-    -- Reset color
-    love.graphics.setColor(1, 1, 1, 1)
 end
 
 function World:isSolid(x, y)
-    local blockType = self:getBlock(x, y)
+    -- Only check foreground layer for solidity since background blocks are always non-solid
+    local blockType = self:getBlock(x, y, "foreground")
     return self.blocks[blockType] and self.blocks[blockType].solid
 end
 
