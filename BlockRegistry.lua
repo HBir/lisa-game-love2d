@@ -18,6 +18,7 @@ function BlockRegistry:new()
 
     -- Load sprite sheet
     self.spriteSheet = love.graphics.newImage("assets/Tiles/Assets/Assets-sheet.png")
+    -- self.spriteSheet:setFilter("nearest", "nearest")
     self.tilesetSize = 16 -- Size of each tile in the sprite sheet
 
     -- Initialize sprite mapping table
@@ -27,7 +28,7 @@ function BlockRegistry:new()
     self.blocks = self:initializeBlockDefinitions()
 
     -- Create quads for each block type plus variants
-    self.blockQuads = self:createQuads()
+    self.blockQuads, self.croppedImages = self:createQuads()
 
     return self
 end
@@ -36,7 +37,7 @@ end
 function BlockRegistry:createBlockWithVariants(blockType, variants)
     local sprites = {}
 
-    sprites[blockType] = { x = variants[1][2][1], y = variants[1][2][2] }
+    -- sprites[blockType] = { x = variants[1][2][1], y = variants[1][2][2] }
     sprites[blockType .. "_TOP_LEFT"] = { x = variants[1][1][1], y = variants[1][1][2] }
     sprites[blockType .. "_TOP"] = { x = variants[1][2][1], y = variants[1][2][2] }
     sprites[blockType .. "_TOP_RIGHT"] = { x = variants[1][3][1], y = variants[1][3][2] }
@@ -83,7 +84,7 @@ function BlockRegistry:initializeSpriteMapping()
         ),
         self:createBlockWithVariants(self.BLOCK_STONE,
             {{{1,5},{2,5},{3,5}},
-            {{2,7},{5,12},{3,7}},
+            {{2,7},{3,11},{3,7}},
             {{0,8},{13,8},{3,8}}}
         ),
         self:createBlockWithVariants(self.BLOCK_STONE_BACKGROUND,
@@ -185,19 +186,7 @@ end
 
 function BlockRegistry:createQuads()
     local quads = {}
-
-    -- Create quads for each block type
-    for blockType, block in pairs(self.blocks) do
-        if block.sprite then
-            quads[blockType] = love.graphics.newQuad(
-                block.sprite.x * (self.tilesetSize +1),
-                block.sprite.y * (self.tilesetSize +1),
-                self.tilesetSize,
-                self.tilesetSize,
-                self.spriteSheet:getDimensions()
-            )
-        end
-    end
+    local croppedImages = {}
 
     -- List of all possible variants to check for each block type
     local variants = {
@@ -206,30 +195,41 @@ function BlockRegistry:createQuads()
         "_TOP_BOTTOM", "_LEFT_RIGHT", "_MIDDLE"
     }
 
+    local spacing = 1
+
     -- Add quads for all variants of all block types
     for blockType, _ in pairs(self.blocks) do
-        if blockType ~= self.BLOCK_AIR then
-            for _, variant in ipairs(variants) do
-                local blockVariant = blockType .. variant
+        if blockType == self.BLOCK_AIR then
+            goto continue
+        end
+
+        for _, variant in ipairs(variants) do
+            local blockVariant = blockType .. variant
                 if self.sprites[blockVariant] then
-                    quads[blockVariant] = love.graphics.newQuad(
-                        self.sprites[blockVariant].x * (self.tilesetSize +1),
-                        self.sprites[blockVariant].y * (self.tilesetSize +1),
-                        self.tilesetSize,
-                        self.tilesetSize,
-                        self.spriteSheet:getDimensions()
-                    )
-                end
+                    local x = self.sprites[blockVariant].x * (self.tilesetSize + spacing)
+                    local y = self.sprites[blockVariant].y * (self.tilesetSize + spacing)
+                    local w = self.tilesetSize
+                    local h = self.tilesetSize
+                    local tilesetW, tilesetH = self.spriteSheet:getWidth(), self.spriteSheet:getHeight()
+
+                    quads[blockVariant] = love.graphics.newQuad(x,y,w,h,tilesetW, tilesetH)
             end
         end
+
+        ::continue::
     end
 
-    return quads
+    return quads, croppedImages
 end
 
 function BlockRegistry:getQuad(blockType, variant)
     local key = variant and variant or blockType
     return self.blockQuads[key]
+end
+
+function BlockRegistry:getCroppedImage(blockType, variant)
+    local key = variant and variant or blockType
+    return self.croppedImages[key]
 end
 
 function BlockRegistry:getBlock(blockType)

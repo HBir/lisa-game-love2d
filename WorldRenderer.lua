@@ -58,10 +58,12 @@ function WorldRenderer:drawLayer(camera, startX, startY, endX, endY, layer)
             local blockVariant = self.autoTiler:getAutoTileVariant(x, y, blockType, layer)
             -- local quadToUse = self.blockRegistry.blockQuads[blockVariant]
             local quadToUse = self.blockRegistry:getQuad(blockType, blockVariant)
+            -- local croppedImage = self.blockRegistry:getCroppedImage(blockType, blockVariant)
 
             -- -- Draw using sprite if available
             if quadToUse then
                 -- Calculate scaling to match tile size
+                local scale = 1
                 local scaleX = 1
                 local scaleY = 1
 
@@ -73,9 +75,10 @@ function WorldRenderer:drawLayer(camera, startX, startY, endX, endY, layer)
                     posX,
                     posY,
                     0,  -- rotation
-                    scaleX,
-                    scaleY
+                    scale,
+                    scale
                 )
+                -- love.graphics.draw(croppedImage, quadToUse, posX, posY, 0, scale, scale)
             else
                 print("No quad found for block type: " .. blockType .. " and variant: " .. blockVariant)
 

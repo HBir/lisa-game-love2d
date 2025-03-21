@@ -46,7 +46,7 @@ function UI:drawUI()
 
     -- Draw block preview
     love.graphics.setColor(1, 1, 1, 1)
-    if self.game.world.blockQuads[blockType] then
+    if self.game.world.blockQuads[blockType .. "_TOP"] then
         -- Calculate scaling to match display size
         local scaleX = blockSize / self.game.world.tilesetSize
         local scaleY = blockSize / self.game.world.tilesetSize
@@ -54,7 +54,7 @@ function UI:drawUI()
         -- Draw the sprite
         love.graphics.draw(
             self.game.world.spriteSheet,
-            self.game.world.blockQuads[blockType],
+            self.game.world.blockQuads[blockType .. "_TOP"],
             labelX,
             labelY + 20,
             0,  -- rotation
@@ -100,7 +100,7 @@ function UI:drawBlockHotbar()
 
         -- Draw the block
         love.graphics.setColor(1, 1, 1, 1)
-        if self.game.world.blockQuads[blockTypeId] then
+        if self.game.world.blockQuads[blockTypeId .. "_TOP"] then
             -- Calculate scaling to match display size
             local scaleX = blockSize / self.game.world.tilesetSize
             local scaleY = blockSize / self.game.world.tilesetSize
@@ -108,7 +108,7 @@ function UI:drawBlockHotbar()
             -- Draw the sprite
             love.graphics.draw(
                 self.game.world.spriteSheet,
-                self.game.world.blockQuads[blockTypeId],
+                self.game.world.blockQuads[blockTypeId .. "_TOP"],
                 x,
                 y,
                 0,  -- rotation
@@ -210,7 +210,7 @@ function UI:drawBlockPlacementPreview()
             local blockType = self.game.player.selectedBlockType
             local block = self.game.world.blocks[blockType]
 
-            if self.game.world.blockQuads[blockType] then
+            if self.game.world.blockQuads[blockType .. "_TOP"] then
                 -- Draw semi-transparent sprite
                 love.graphics.setColor(1, 1, 1, 0.5)
 
@@ -221,7 +221,7 @@ function UI:drawBlockPlacementPreview()
                 -- Draw the sprite
                 love.graphics.draw(
                     self.game.world.spriteSheet,
-                    self.game.world.blockQuads[blockType],
+                    self.game.world.blockQuads[blockType  .. "_TOP"],
                     pixelX,
                     pixelY,
                     0,  -- rotation
@@ -257,8 +257,8 @@ function UI:drawSpriteDebug()
     local tileSize = self.game.world.blockRegistry.tilesetSize
 
     -- Calculate how many sprites fit per row based on window width
-    local columns = math.floor(self.game.width / (tileSize * 4))
-    local spacing = 5 -- Space between sprites horizontally
+    local columns = 11 --math.floor(self.game.width / (tileSize * 4))
+    local spacing = 0 -- Space between sprites horizontally
     local verticalSpacing = 35 -- Increased vertical spacing to make room for text
     local scale = 3 -- Scale up sprites for better visibility
 
@@ -291,7 +291,14 @@ function UI:drawSpriteDebug()
     for _, quad in pairs(sortedQuads) do
         local x = 10 + col * (tileSize * scale + spacing)
         local y = startY + row * (tileSize * scale + verticalSpacing)
+
+        -- Draw sprite
+        love.graphics.setColor(1, 1, 1, 1)
         love.graphics.draw(spriteSheet, quad.quad, x, y, 0, scale, scale)
+
+        -- -- Draw border around the sprite
+        -- love.graphics.setColor(0.5, 0.5, 0.5, 1)
+        -- love.graphics.rectangle("line", x - 1, y - 1, tileSize * scale + 2, tileSize * scale + 2)
 
         local blockTypeStr = tostring(quad.key)
         local textWidth = blockTypeStr:len() * 6 -- Approximate width
