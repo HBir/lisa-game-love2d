@@ -3,6 +3,7 @@ local Camera = require("camera")
 local World = require("world")
 local Player = require("player")
 local Chicken = require("npc.chicken")  -- Import the chicken NPC
+local Inputs = require("Inputs")  -- Import the new inputs module
 
 local Game = {}
 Game.__index = Game
@@ -14,20 +15,6 @@ function Game:new()
     self.title = "Lisa's Game"
     self.width = 800
     self.height = 600
-
-    -- Interaction state
-    self.mouseX = 0
-    self.mouseY = 0
-    self.isPlacingBlock = false
-    self.isRemovingBlock = false
-
-    -- Variables to track the last block interacted with
-    self.lastBlockX = -1
-    self.lastBlockY = -1
-
-    -- Block placement rate control
-    self.blockPlacementCooldown = 0
-    self.blockPlacementRate = 0.1 -- seconds between block placements
 
     -- NPC management
     self.npcs = {}  -- Table to store all NPCs
@@ -97,6 +84,9 @@ function Game:load()
 
     -- Create some chickens in the world
     self:spawnInitialNPCs()
+
+    -- Initialize inputs system
+    self.inputs = Inputs:new(self)
 
     -- Game state
     self.paused = false
@@ -395,48 +385,8 @@ function Game:update(dt)
     -- Update save message
     self:updateSaveMessage(dt)
 
-    -- Update mouse position
-    self.mouseX, self.mouseY = love.mouse.getPosition()
-
-    -- Update block placement cooldown
-    if self.blockPlacementCooldown > 0 then
-        self.blockPlacementCooldown = self.blockPlacementCooldown - dt
-    end
-
-    -- Handle continuous block placement/removal when mouse is held down
-    if (self.isPlacingBlock or self.isRemovingBlock) and self.blockPlacementCooldown <= 0 then
-        -- Convert screen coordinates to world coordinates
-        local worldX, worldY = self.camera:screenToWorld(self.mouseX, self.mouseY)
-
-        -- Convert to grid coordinates
-        local gridX = math.floor(worldX / self.world.tileSize) + 1
-        local gridY = math.floor(worldY / self.world.tileSize) + 1
-
-        -- Check if this is a different block than the last one we interacted with
-        if gridX ~= self.lastBlockX or gridY ~= self.lastBlockY then
-            if self.isRemovingBlock then
-                local blockType = self.world:getBlock(worldX, worldY)
-                if blockType ~= World.BLOCK_AIR then
-                    -- Create a block removal particle effect before removing the block
-                    self:emitBlockBreakParticles(worldX, worldY, blockType)
-                    self.world:removeBlock(worldX, worldY)
-                end
-            elseif self.isPlacingBlock then
-                local success = self.world:placeBlock(worldX, worldY, self.player.selectedBlockType)
-                if success then
-                    -- Create a block placement particle effect after placing the block
-                    self:emitBlockPlaceParticles(worldX, worldY, self.player.selectedBlockType)
-                end
-            end
-
-            -- Update the last block coordinates
-            self.lastBlockX = gridX
-            self.lastBlockY = gridY
-
-            -- Set cooldown to prevent too frequent block operations
-            self.blockPlacementCooldown = self.blockPlacementRate
-        end
-    end
+    -- Update inputs
+    self.inputs:update(dt)
 end
 
 -- Function to update all NPCs
@@ -688,56 +638,7 @@ function Game:draw()
     self.player:draw()
 
     -- Draw block placement preview
-    if self.isPlacingBlock or self.isRemovingBlock then
-        local worldX, worldY = self.camera:screenToWorld(self.mouseX, self.mouseY)
-        local gridX = math.floor(worldX / self.world.tileSize) + 1
-        local gridY = math.floor(worldY / self.world.tileSize) + 1
-        local pixelX = (gridX - 1) * self.world.tileSize
-        local pixelY = (gridY - 1) * self.world.tileSize
-
-        if self.isPlacingBlock then
-            -- Show preview of block to be placed
-            local blockType = self.player.selectedBlockType
-            local block = self.world.blocks[blockType]
-
-            if self.world.blockQuads[blockType] then
-                -- Draw semi-transparent sprite
-                love.graphics.setColor(1, 1, 1, 0.5)
-
-                -- Calculate scaling
-                local scaleX = self.world.tileSize / self.world.tilesetSize
-                local scaleY = self.world.tileSize / self.world.tilesetSize
-
-                -- Draw the sprite
-                love.graphics.draw(
-                    self.world.spriteSheet,
-                    self.world.blockQuads[blockType],
-                    pixelX,
-                    pixelY,
-                    0,  -- rotation
-                    scaleX,
-                    scaleY
-                )
-            else
-                -- Fallback to semi-transparent block
-                love.graphics.setColor(block.color[1], block.color[2], block.color[3], 0.5)
-                love.graphics.rectangle("fill", pixelX, pixelY, self.world.tileSize, self.world.tileSize)
-            end
-
-            -- Draw outline
-            love.graphics.setColor(1, 1, 1, 0.8)
-            love.graphics.rectangle("line", pixelX, pixelY, self.world.tileSize, self.world.tileSize)
-        else
-            -- Show removal indicator
-            love.graphics.setColor(1, 0, 0, 0.3)
-            love.graphics.rectangle("fill", pixelX, pixelY, self.world.tileSize, self.world.tileSize)
-
-            -- Draw X
-            love.graphics.setColor(1, 0, 0, 0.8)
-            love.graphics.line(pixelX, pixelY, pixelX + self.world.tileSize, pixelY + self.world.tileSize)
-            love.graphics.line(pixelX + self.world.tileSize, pixelY, pixelX, pixelY + self.world.tileSize)
-        end
-    end
+    self:drawBlockPlacementPreview()
 
     -- End camera transformation
     self.camera:unset()
@@ -948,98 +849,79 @@ function Game:drawLisaProgress()
     end
 end
 
+-- Drawing the block placement preview
+function Game:drawBlockPlacementPreview()
+    if self.inputs.isPlacingBlock or self.inputs.isRemovingBlock then
+        local worldX, worldY = self.camera:screenToWorld(self.inputs.mouseX, self.inputs.mouseY)
+        local gridX = math.floor(worldX / self.world.tileSize) + 1
+        local gridY = math.floor(worldY / self.world.tileSize) + 1
+        local pixelX = (gridX - 1) * self.world.tileSize
+        local pixelY = (gridY - 1) * self.world.tileSize
+
+        if self.inputs.isPlacingBlock then
+            -- Show preview of block to be placed
+            local blockType = self.player.selectedBlockType
+            local block = self.world.blocks[blockType]
+
+            if self.world.blockQuads[blockType] then
+                -- Draw semi-transparent sprite
+                love.graphics.setColor(1, 1, 1, 0.5)
+
+                -- Calculate scaling
+                local scaleX = self.world.tileSize / self.world.tilesetSize
+                local scaleY = self.world.tileSize / self.world.tilesetSize
+
+                -- Draw the sprite
+                love.graphics.draw(
+                    self.world.spriteSheet,
+                    self.world.blockQuads[blockType],
+                    pixelX,
+                    pixelY,
+                    0,  -- rotation
+                    scaleX,
+                    scaleY
+                )
+            else
+                -- Fallback to semi-transparent block
+                love.graphics.setColor(block.color[1], block.color[2], block.color[3], 0.5)
+                love.graphics.rectangle("fill", pixelX, pixelY, self.world.tileSize, self.world.tileSize)
+            end
+
+            -- Draw outline
+            love.graphics.setColor(1, 1, 1, 0.8)
+            love.graphics.rectangle("line", pixelX, pixelY, self.world.tileSize, self.world.tileSize)
+        else
+            -- Show removal indicator
+            love.graphics.setColor(1, 0, 0, 0.3)
+            love.graphics.rectangle("fill", pixelX, pixelY, self.world.tileSize, self.world.tileSize)
+
+            -- Draw X
+            love.graphics.setColor(1, 0, 0, 0.8)
+            love.graphics.line(pixelX, pixelY, pixelX + self.world.tileSize, pixelY + self.world.tileSize)
+            love.graphics.line(pixelX + self.world.tileSize, pixelY, pixelX, pixelY + self.world.tileSize)
+        end
+    end
+end
+
+-- Forward input events to the inputs module
 function Game:keypressed(key)
-    if key == "escape" then
-        self.paused = not self.paused
-    end
-
-    -- Save world with F5
-    if key == "f5" then
-        self:saveWorld()
-    end
-
-    -- Load world with F9
-    if key == "f9" then
-        self:loadWorld()
-    end
-
-    -- Toggle sprite debug view with X
-    if key == "x" then
-        self.showSpriteDebug = not self.showSpriteDebug
-    end
-
-    -- Check for LISA sequence
-    self:checkLisaSequence(key)
-
-    -- Number keys 1-5 for selecting block types
-    local num = tonumber(key)
-    if num and num >= 1 and num <= #self.player.blockTypes then
-        self.player:selectBlockType(num)
-    end
-
-    if not self.paused then
-        self.player:keypressed(key)
-    end
+    self.inputs:keypressed(key)
 end
 
 function Game:keyreleased(key)
-    if not self.paused then
-        self.player:keyreleased(key)
-    end
+    self.inputs:keyreleased(key)
 end
 
 function Game:mousepressed(x, y, button)
-    if not self.paused then
-        -- Convert screen coordinates to world coordinates
-        local worldX, worldY = self.camera:screenToWorld(x, y)
-
-        -- Convert to grid coordinates for tracking
-        local gridX = math.floor(worldX / self.world.tileSize) + 1
-        local gridY = math.floor(worldY / self.world.tileSize) + 1
-
-        -- Store the initial block coordinates
-        self.lastBlockX = gridX
-        self.lastBlockY = gridY
-
-        -- Handle block placement/removal
-        if button == 1 then -- Left click
-            local blockType = self.world:getBlock(worldX, worldY)
-            if blockType ~= World.BLOCK_AIR then
-                -- Create a block removal particle effect before removing the block
-                self:emitBlockBreakParticles(worldX, worldY, blockType)
-                self.world:removeBlock(worldX, worldY)
-            end
-            self.isRemovingBlock = true
-        elseif button == 2 then -- Right click
-            local success = self.world:placeBlock(worldX, worldY, self.player.selectedBlockType)
-            if success then
-                -- Create a block placement particle effect after placing the block
-                self:emitBlockPlaceParticles(worldX, worldY, self.player.selectedBlockType)
-            end
-            self.isPlacingBlock = true
-        end
-
-        -- Reset cooldown after initial placement
-        self.blockPlacementCooldown = self.blockPlacementRate
-    end
+    self.inputs:mousepressed(x, y, button)
 end
 
 function Game:mousereleased(x, y, button)
-    -- Handle mouse release events
-    if button == 1 then -- Left click
-        self.isRemovingBlock = false
-    elseif button == 2 then -- Right click
-        self.isPlacingBlock = false
-    end
+    self.inputs:mousereleased(x, y, button)
 end
 
 function Game:wheelmoved(x, y)
-    -- Change selected block type
-    if y > 0 then
-        self.player:nextBlockType()
-    elseif y < 0 then
-        self.player:prevBlockType()
-    end
+    self.inputs:wheelmoved(x, y)
 end
 
 -- Function to emit particles when a block is broken
