@@ -2,6 +2,9 @@
 local ParticleSystem = {}
 ParticleSystem.__index = ParticleSystem
 
+-- Compatibility with Lua 5.4 which moved unpack to unpack
+local unpack = unpack or table.unpack
+
 function ParticleSystem:new()
   local self = setmetatable({}, ParticleSystem)
 

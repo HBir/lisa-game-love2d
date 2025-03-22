@@ -64,8 +64,6 @@ function WorldRenderer:drawLayer(camera, startX, startY, endX, endY, layer)
             if quadToUse then
                 -- Calculate scaling to match tile size
                 local scale = 1
-                local scaleX = 1
-                local scaleY = 1
 
 
                 -- Draw the sprite with proper scaling
@@ -86,11 +84,11 @@ function WorldRenderer:drawLayer(camera, startX, startY, endX, endY, layer)
                 local block = self.blockRegistry:getBlock(blockType)
                 local r, g, b, a = block.color[1], block.color[2], block.color[3], block.color[4] or 1
                 love.graphics.setColor(r, g, b, a * alpha)
-                love.graphics.rectangle("fill", pixelX, pixelY, self.tileSize, self.tileSize)
+                love.graphics.rectangle("fill", posX, posY, self.tileSize, self.tileSize)
 
                 -- Draw outline
                 love.graphics.setColor(0, 0, 0, 0.3 * alpha)
-                love.graphics.rectangle("line", pixelX, pixelY, self.tileSize, self.tileSize)
+                love.graphics.rectangle("line", posX, posY, self.tileSize, self.tileSize)
             end
             ::continue::
         end

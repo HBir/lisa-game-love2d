@@ -20,7 +20,7 @@ function BlockRegistry:new()
     -- Load sprite sheet
     self.spriteSheet = love.graphics.newImage("assets/Tiles/Assets/Assets-sheet.png")
     -- self.spriteSheet:setFilter("nearest", "nearest")
-    self.tilesetSize = 16 -- Size of each tile in the sprite sheet
+    self.tilesetSize = 14 -- Size of each tile in the sprite sheet
 
     -- Initialize sprite mapping table
     self.sprites = self:initializeSpriteMapping()
@@ -209,7 +209,7 @@ function BlockRegistry:createQuads()
         "_TOP_BOTTOM", "_LEFT_RIGHT", "_MIDDLE"
     }
 
-    local spacing = 1
+    local spacing = 3
 
     -- Add quads for all variants of all block types
     for blockType, _ in pairs(self.blocks) do
@@ -220,8 +220,8 @@ function BlockRegistry:createQuads()
         for _, variant in ipairs(variants) do
             local blockVariant = blockType .. variant
                 if self.sprites[blockVariant] then
-                    local x = self.sprites[blockVariant].x * (self.tilesetSize + spacing)
-                    local y = self.sprites[blockVariant].y * (self.tilesetSize + spacing)
+                    local x = self.sprites[blockVariant].x * (self.tilesetSize + spacing) + 1
+                    local y = self.sprites[blockVariant].y * (self.tilesetSize + spacing) + 1
                     local w = self.tilesetSize
                     local h = self.tilesetSize
                     local tilesetW, tilesetH = self.spriteSheet:getWidth(), self.spriteSheet:getHeight()

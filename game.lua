@@ -5,7 +5,7 @@ local Player = require("player")
 local Chicken = require("npc.chicken")  -- Import the chicken NPC
 local Inputs = require("Inputs")  -- Import the new inputs module
 local ParticleSystem = require("ParticleSystem")
-local UI = require("UI")  -- Import the new UI module
+local UI = require("UI.UI")  -- Import the new UI module
 local Game = {}
 
 Game.__index = Game
@@ -49,11 +49,14 @@ function Game:load()
         minheight = 600
     })
 
+    -- love.graphics.setDefaultFilter("nearest", "nearest")
+    -- love.graphics.setLineStyle("smooth")
+
     -- Load background image
     self.backgroundImage = love.graphics.newImage("assets/Tiles/Assets/Background_2.png")
 
     -- Initialize the world
-    self.world = World:new(256, 256, 16) -- width, height, tile size
+    self.world = World:new(256, 256, 14) -- width, height, tile size
     self.world:generate()
 
     -- Find a good starting position near the surface
@@ -251,7 +254,7 @@ function Game:draw()
 
     -- Draw sprite debug view if enabled (should be on top of everything)
     if self.debugPage > 0 then
-        self.ui:drawSpriteDebug(self.debugPage)
+        self.ui:drawDebugMenu(self.debugPage)
     end
 end
 
@@ -444,23 +447,6 @@ end
 -- Create an explosion effect at the specified position
 function Game:createExplosion(x, y, colors)
     self.particles:createExplosion(x, y, colors)
-end
-
--- Raycast from screen position to find block
-local function raycast(x, y)
-    -- Convert screen position to world position
-    local worldX, worldY = camera:screenToWorld(x, y)
-
-    -- Find closest block position that the ray hits
-    local tileX = math.floor(worldX / self.world.tileSize)
-    local tileY = math.floor(worldY / self.world.tileSize)
-
-    -- Check if there's a block at that position
-    if self.world:isSolid(worldX, worldY, false, false) then
-        return tileX, tileY
-    end
-
-    return nil, nil
 end
 
 return Game

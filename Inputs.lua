@@ -131,7 +131,7 @@ function Inputs:mousepressed(x, y, button)
 
     -- Check for pause menu interaction if game is paused
     if game.paused and button == 1 then -- Left click on pause menu
-        if game.ui:handlePauseMenuClick(x, y) then
+        if game.ui.pauseMenu:handlePauseMenuClick(x, y) then
             return -- Click handled by the menu
         end
     end

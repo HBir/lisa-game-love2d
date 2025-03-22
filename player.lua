@@ -612,11 +612,11 @@ function Player:draw()
 
         -- Draw text background
         love.graphics.setColor(0, 0, 0, 0.7 * alpha)
-        local textWidth = #self.blockChangeNotification.text * 8 -- Approximate width
+        local textWidth = #self.blockChangeNotification.text * 7.5 -- -Approximate width
         love.graphics.rectangle("fill",
             self.x - textWidth/2 - 5,
-            self.y - self.height - 10,
-            textWidth + 10,
+            self.y - self.height - 7,
+            textWidth,
             20)
 
         -- Draw text
