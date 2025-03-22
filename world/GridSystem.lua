@@ -143,6 +143,10 @@ end
 
 -- Check if a position is solid
 function GridSystem:isSolid(x, y, tileSize, movingDown, passThroughPlatforms)
+    -- Convert to grid coordinates
+    local gridX = math.floor(x / tileSize) + 1
+    local gridY = math.floor(y / tileSize) + 1
+
     -- Only check foreground layer for solidity
     local blockType = self:getBlock(x / tileSize, y / tileSize, "foreground")
 
@@ -174,6 +178,23 @@ function GridSystem:isSolid(x, y, tileSize, movingDown, passThroughPlatforms)
         return true
     end
 
+    -- Check for furniture at this position
+    if gridX >= 1 and gridX <= self.width and gridY >= 1 and gridY <= self.height then
+        local furnitureData = self.furnitureGrid[gridY][gridX]
+        if furnitureData then
+            -- Get the furniture type and state
+            local furnitureType = furnitureData.type
+            local originX = furnitureData.originX
+            local originY = furnitureData.originY
+
+            -- Get the current state of the furniture (stored at the origin)
+            local state = self.furnitureStateGrid[originY][originX]
+
+            -- Check if the furniture is solid based on its state
+            return self.furnitureRegistry:isSolid(furnitureType, state)
+        end
+    end
+
     -- Regular solidity check for non-platform blocks
     return self.blockRegistry:isSolid(blockType)
 end
@@ -182,7 +203,14 @@ end
 function GridSystem:getFurnitureAt(gridX, gridY)
     -- Direct grid access with bounds checking
     if gridX >= 1 and gridX <= self.width and gridY >= 1 and gridY <= self.height then
-        return self.furnitureGrid[gridY][gridX], self.furnitureStateGrid[gridY][gridX]
+        local furnitureData = self.furnitureGrid[gridY][gridX]
+        if furnitureData then
+            -- Get the state from the origin cell
+            local originX = furnitureData.originX
+            local originY = furnitureData.originY
+            local state = self.furnitureStateGrid[originY][originX]
+            return furnitureData, state
+        end
     end
     return nil, nil
 end

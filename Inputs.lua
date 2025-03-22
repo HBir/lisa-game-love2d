@@ -248,6 +248,77 @@ function Inputs:handleBlockRemoval()
     end
 end
 
+-- New function to handle furniture interaction
+function Inputs:handleFurnitureInteraction()
+    print("Furniture interaction triggered!")
+
+    -- Get the player's position
+    local playerX = self.game.player.x
+    local playerY = self.game.player.y
+    print("Player position:", playerX, playerY)
+
+    -- Define interaction radius (how close the player needs to be to interact)
+    local interactionRadius = self.game.world.tileSize * 4  -- Increased from 2 to 4 tiles
+    print("Interaction radius:", interactionRadius)
+
+    -- Check all grid positions around the player
+    local playerGridX = math.floor(playerX / self.game.world.tileSize) + 1
+    local playerGridY = math.floor(playerY / self.game.world.tileSize) + 1
+    print("Player grid position:", playerGridX, playerGridY)
+
+    -- Check in a 3x3 area around the player
+    for y = playerGridY - 1, playerGridY + 1 do
+        for x = playerGridX - 1, playerGridX + 1 do
+            -- Check if this position is in grid bounds
+            if x >= 1 and x <= self.game.world.width and y >= 1 and y <= self.game.world.height then
+                -- Check if there's furniture at this position
+                local furnitureData, state = self.game.world:getFurnitureAt(x, y)
+                if furnitureData then
+                    print("Found furniture at:", x, y, "State:", state)
+
+                    -- Get the furniture type and origin
+                    local furnitureType = furnitureData.type
+                    local originX = furnitureData.originX
+                    local originY = furnitureData.originY
+                    print("Furniture type:", furnitureType, "Origin:", originX, originY)
+
+                    -- Check if the furniture is interactable
+                    local isInteractable = self.game.world.furnitureRegistry:isInteractable(furnitureType)
+                    print("Is interactable:", isInteractable)
+
+                    if isInteractable then
+                        -- Calculate distance to check if player is close enough
+                        local furnitureWorldX = (originX - 1) * self.game.world.tileSize
+                        local furnitureWorldY = (originY - 1) * self.game.world.tileSize
+                        local distance = math.sqrt((playerX - furnitureWorldX) ^ 2 + (playerY - furnitureWorldY) ^ 2)
+                        print("Distance to furniture:", distance, "Max allowed:", interactionRadius)
+
+                        if distance <= interactionRadius then
+                            -- Toggle furniture state based on furniture type
+                            if furnitureType == self.game.world.furnitureRegistry.FURNITURE_DOOR then
+                                print("Toggling door state from", state)
+                                -- Toggle door state between open and closed
+                                local newState = (state == "closed") and "open" or "closed"
+                                local success = self.game.world:setFurnitureState(originX, originY, newState)
+                                print("Door state changed to", newState, "Success:", success)
+
+                                -- Show notification
+                                self.game.player:showNotification("Door " .. newState, {1, 1, 0.5, 1})
+                                return true
+                            end
+
+                            -- Add other furniture type interactions here as needed
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    print("No interactable furniture found nearby")
+    return false
+end
+
 -- Handle key press events
 function Inputs:keypressed(key)
     if key == "escape" then
@@ -263,6 +334,9 @@ function Inputs:keypressed(key)
         self.game.debugPage = (self.game.debugPage + 1) % 4
         -- For backward compatibility
         self.game.showSpriteDebug = self.game.debugPage > 0
+    elseif key == "e" then
+        -- Handle furniture interaction
+        self:handleFurnitureInteraction()
     elseif key == "f5" then
         -- Save world
         self.game:saveWorld()

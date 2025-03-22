@@ -157,4 +157,14 @@ function World:canPlaceFurniture(x, y, furnitureType)
     return self.gridSystem:canPlaceFurniture(gridX, gridY, furnitureType)
 end
 
+-- Get furniture at a grid position
+function World:getFurnitureAt(gridX, gridY)
+    return self.gridSystem:getFurnitureAt(gridX, gridY)
+end
+
+-- Set furniture state
+function World:setFurnitureState(gridX, gridY, newState)
+    return self.gridSystem:setFurnitureState(gridX, gridY, newState)
+end
+
 return World

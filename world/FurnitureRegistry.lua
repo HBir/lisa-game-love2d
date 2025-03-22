@@ -93,11 +93,17 @@ function FurnitureRegistry:initializeFurnitureDefinitions()
         name = "Door",
         width = 1,
         height = 4,
-        solid = true,
+        solid = true, -- Default solid when closed
         interactable = true,
         states = {
-            closed = { frame = 0 },
-            open = { frame = 1 }
+            closed = {
+                frame = 0,
+                solid = true -- Explicitly solid when closed
+            },
+            open = {
+                frame = 1,
+                solid = false -- Not solid when open (can walk through)
+            }
         },
         defaultState = "closed",
         color = {0.8, 0.6, 0.4, 1},
@@ -273,9 +279,20 @@ function FurnitureRegistry:getFurniture(furnitureType)
     return self.furniture[furnitureType]
 end
 
-function FurnitureRegistry:isSolid(furnitureType)
+function FurnitureRegistry:isSolid(furnitureType, state)
     local item = self.furniture[furnitureType]
-    return item and item.solid
+    if not item then
+        return false
+    end
+
+    -- If a specific state is provided, check if this state affects solidity
+    if state and item.states[state] and item.states[state].solid ~= nil then
+        -- Use the state-specific solidity
+        return item.states[state].solid
+    end
+
+    -- Default to the furniture's base solidity
+    return item.solid
 end
 
 function FurnitureRegistry:isInteractable(furnitureType)

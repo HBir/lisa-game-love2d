@@ -9,7 +9,7 @@ function Chicken:new(world, x, y)
     local self = NPC.new(self, world, x, y, 16, 14)  -- Width 16, height 14
 
     -- Load sprite sheet
-    self.spriteSheet = love.graphics.newImage("assets/Rocky Roads/Enemies/chicken.png")
+    self.spriteSheet = love.graphics.newImage("assets/Overworld/chicken.png")
 
     -- Graphics offsets
     self.offsetX = 0

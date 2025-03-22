@@ -53,7 +53,7 @@ function Game:load()
     -- love.graphics.setLineStyle("smooth")
 
     -- Load background image
-    self.backgroundImage = love.graphics.newImage("assets/Tiles/Assets/Background_2.png")
+    self.backgroundImage = love.graphics.newImage("assets/Tiles/Background_2.png")
 
     -- Initialize the world
     self.world = World:new(256, 256, 14) -- width, height, tile size

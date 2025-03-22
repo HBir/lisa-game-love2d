@@ -17,7 +17,7 @@ function BlockRegistry:new()
     local self = setmetatable({}, BlockRegistry)
 
     -- Load sprite sheet
-    self.spriteSheet = love.graphics.newImage("assets/Tiles/Assets/Assets-sheet.png")
+    self.spriteSheet = love.graphics.newImage("assets/Tiles/Assets-sheet.png")
     -- self.spriteSheet:setFilter("nearest", "nearest")
     self.tilesetSize = 14 -- Size of each tile in the sprite sheet
 

@@ -57,7 +57,8 @@ function Player:new(world, x, y)
     self.blockChangeNotification = {
         text = "",
         timer = 0,
-        duration = 1.5 -- How long to show the notification
+        duration = 1.5, -- How long to show the notification
+        color = {1, 1, 1, 1} -- Default white color
     }
 
     -- Controls
@@ -88,11 +89,11 @@ function Player:new(world, x, y)
     }
 
     -- Load the character spritesheets
-    self.idleSpritesheet = love.graphics.newImage("assets/Characters/Knight_player_1.4/Knight_player/Idle_KG_1.png")
-    self.walkingSpritesheet = love.graphics.newImage("assets/Characters/Knight_player_1.4/Knight_player/Walking_KG_1.png")
-    self.jumpSpritesheet = love.graphics.newImage("assets/Characters/Knight_player_1.4/Knight_player/Jump_KG_1.png")
-    self.fallSpritesheet = love.graphics.newImage("assets/Characters/Knight_player_1.4/Knight_player/Fall_KG_1.png")
-    self.landingSpritesheet = love.graphics.newImage("assets/Characters/Knight_player_1.4/Knight_player/Landing_KG_1.png")
+    self.idleSpritesheet = love.graphics.newImage("assets/Characters/Idle_KG_1.png")
+    self.walkingSpritesheet = love.graphics.newImage("assets/Characters/Walking_KG_1.png")
+    self.jumpSpritesheet = love.graphics.newImage("assets/Characters/Jump_KG_1.png")
+    self.fallSpritesheet = love.graphics.newImage("assets/Characters/Fall_KG_1.png")
+    self.landingSpritesheet = love.graphics.newImage("assets/Characters/Landing_KG_1.png")
 
     -- Define sprite dimensions and offsets based on the CSS values
     -- From CSS we have dimensions around 32-33px width and 61-63px height
@@ -632,8 +633,14 @@ function Player:draw()
             textWidth,
             20)
 
-        -- Draw text
-        love.graphics.setColor(1, 1, 1, alpha)
+        -- Draw text with the notification color if available
+        if self.blockChangeNotification.color then
+            local color = self.blockChangeNotification.color
+            love.graphics.setColor(color[1], color[2], color[3], alpha * (color[4] or 1))
+        else
+            love.graphics.setColor(1, 1, 1, alpha)
+        end
+
         love.graphics.print(
             self.blockChangeNotification.text,
             self.x - textWidth/2,
@@ -761,6 +768,17 @@ end
 function Player:prevFurnitureType()
     local prevIndex = (self.furnitureTypeIndex - 2) % #self.furnitureTypes + 1
     self:selectFurnitureType(prevIndex)
+end
+
+-- Show a notification above the player
+function Player:showNotification(text, color)
+    self.blockChangeNotification.text = text
+    self.blockChangeNotification.timer = self.blockChangeNotification.duration
+    if color then
+        self.blockChangeNotification.color = color
+    else
+        self.blockChangeNotification.color = {1, 1, 1, 1} -- Default white
+    end
 end
 
 return Player
