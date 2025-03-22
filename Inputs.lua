@@ -292,6 +292,9 @@ function Inputs:keypressed(key)
                 self.game.player:selectBlockType(self.game.player.blockTypes[index])
             end
         end
+    else
+        -- Check if the key is part of the LISA sequence
+        self.game:checkLisaSequence(key)
     end
 
     if not self.game.paused then
@@ -308,7 +311,13 @@ end
 
 -- Handle mouse press events
 function Inputs:mousepressed(x, y, button)
-    if self.game.paused then return end
+    if self.game.paused then
+        -- Check if the click is on a pause menu button when paused
+        if button == 1 then -- Left mouse button
+            return self.game.ui.pauseMenu:handlePauseMenuClick(x, y)
+        end
+        return
+    end
 
     if button == 1 then -- Left mouse button
         -- Start removing blocks or furniture

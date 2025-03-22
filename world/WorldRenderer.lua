@@ -144,6 +144,11 @@ function WorldRenderer:drawFurniture(camera, startX, startY, endX, endY)
                         local posX = (originX - 1) * self.tileSize
                         local posY = (originY - 1) * self.tileSize
 
+                        -- Get furniture dimensions
+                        local spriteW, spriteH = self.furnitureRegistry:getSpriteSize(furnitureType)
+                        local gridW = furniture.width
+                        local gridH = furniture.height
+
                         -- Get furniture state
                         local state = self.gridSystem:getFurnitureState(originX, originY)
 
@@ -151,12 +156,31 @@ function WorldRenderer:drawFurniture(camera, startX, startY, endX, endY)
                         local quadToUse = self.furnitureRegistry:getQuad(furnitureType, state)
 
                         if quadToUse then
-                            -- Draw the furniture sprite
+                            -- Calculate scale to fit exactly in the grid
+                            local scaleX = (gridW * self.tileSize) / spriteW
+                            local scaleY = (gridH * self.tileSize) / spriteH
+
+                            -- Optional: Draw grid background (uncomment if you want it)
+                            -- love.graphics.setColor(0.2, 0.2, 0.2, 0.3)
+                            -- for gx = 0, gridW - 1 do
+                            --     for gy = 0, gridH - 1 do
+                            --         love.graphics.rectangle("fill",
+                            --             posX + gx * self.tileSize,
+                            --             posY + gy * self.tileSize,
+                            --             self.tileSize, self.tileSize)
+                            --     end
+                            -- end
+
+                            -- Draw the furniture sprite scaled to fit the grid
+                            love.graphics.setColor(1, 1, 1, 1)
                             love.graphics.draw(
                                 self.furnitureRegistry.spriteSheet,
                                 quadToUse,
                                 posX,
-                                posY
+                                posY,
+                                0,  -- rotation
+                                scaleX,
+                                scaleY
                             )
                         else
                             -- Fallback if quad not found: draw colored rectangle
@@ -227,6 +251,26 @@ function WorldRenderer:drawFurniturePreview()
     local quadToUse = self.furnitureRegistry:getQuad(self.previewFurnitureType, state)
 
     if quadToUse then
+        -- Get furniture dimensions for scaling
+        local spriteW, spriteH = self.furnitureRegistry:getSpriteSize(self.previewFurnitureType)
+        local gridW = furniture.width
+        local gridH = furniture.height
+
+        -- Calculate scale to fit exactly in the grid
+        local scaleX = (gridW * self.tileSize) / spriteW
+        local scaleY = (gridH * self.tileSize) / spriteH
+
+        -- Draw grid to indicate placement area
+        love.graphics.setColor(0.2, 0.2, 0.2, 0.2)
+        for gx = 0, gridW - 1 do
+            for gy = 0, gridH - 1 do
+                love.graphics.rectangle("fill",
+                    posX + gx * self.tileSize,
+                    posY + gy * self.tileSize,
+                    self.tileSize, self.tileSize)
+            end
+        end
+
         -- Tint green if can place, red if cannot
         if self.canPlace then
             love.graphics.setColor(0.7, 1, 0.7, alpha)
@@ -239,7 +283,10 @@ function WorldRenderer:drawFurniturePreview()
             self.furnitureRegistry.spriteSheet,
             quadToUse,
             posX,
-            posY
+            posY,
+            0,  -- rotation
+            scaleX,
+            scaleY
         )
     else
         -- Fallback: draw colored rectangle

@@ -95,8 +95,8 @@ function GridSystem:placeBlock(x, y, blockType, tileSize)
             return true
         else
             -- Solid blocks go to foreground layer
-            -- Can only place if the spot is empty (air)
-            if self.foregroundGrid[gridY][gridX] == self.blockRegistry.BLOCK_AIR then
+            -- Can only place if the spot is empty (air) and doesn't have furniture
+            if self.foregroundGrid[gridY][gridX] == self.blockRegistry.BLOCK_AIR and not self.furnitureGrid[gridY][gridX] then
                 self.foregroundGrid[gridY][gridX] = blockType
                 return true
             end
@@ -213,10 +213,16 @@ function GridSystem:canPlaceFurniture(gridX, gridY, furnitureType)
         return false
     end
 
-    -- Check if any cell in the furniture area already has furniture
+    -- Check if any cell in the furniture area already has furniture or foreground blocks
     for y = gridY, gridY + furnitureHeight - 1 do
         for x = gridX, gridX + furnitureWidth - 1 do
+            -- Check for existing furniture
             if self.furnitureGrid[y][x] then
+                return false
+            end
+
+            -- Check for foreground blocks (furniture can't be placed over foreground blocks)
+            if self.foregroundGrid[y][x] ~= self.blockRegistry.BLOCK_AIR then
                 return false
             end
         end

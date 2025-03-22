@@ -107,8 +107,8 @@ function FurnitureRegistry:initializeFurnitureDefinitions()
     -- Bookshelf
     furniture[self.FURNITURE_BOOKSHELF] = {
         name = "Bookshelf",
-        width = 1,
-        height = 2,
+        width = 2,
+        height = 3,
         solid = true,
         interactable = false,
         states = {
@@ -122,8 +122,8 @@ function FurnitureRegistry:initializeFurnitureDefinitions()
     -- Bed (2x1 blocks)
     furniture[self.FURNITURE_BED] = {
         name = "Bed",
-        width = 2,
-        height = 1,
+        width = 4,
+        height = 2,
         solid = true,
         interactable = true,
         states = {
@@ -138,7 +138,7 @@ function FurnitureRegistry:initializeFurnitureDefinitions()
     furniture[self.FURNITURE_CHAIR] = {
         name = "Chair",
         width = 1,
-        height = 1,
+        height = 2,
         solid = false,  -- Can walk through
         interactable = true,
         states = {
@@ -152,8 +152,8 @@ function FurnitureRegistry:initializeFurnitureDefinitions()
     -- Table
     furniture[self.FURNITURE_TABLE] = {
         name = "Table",
-        width = 2,
-        height = 1,
+        width = 3,
+        height = 2,
         solid = true,
         interactable = false,
         states = {
@@ -167,8 +167,8 @@ function FurnitureRegistry:initializeFurnitureDefinitions()
     -- Sofa
     furniture[self.FURNITURE_SOFA] = {
         name = "Sofa",
-        width = 2,
-        height = 1,
+        width = 4,
+        height = 2,
         solid = true,
         interactable = true,
         states = {
@@ -182,7 +182,7 @@ function FurnitureRegistry:initializeFurnitureDefinitions()
     -- Small Table
     furniture[self.FURNITURE_SMALL_TABLE] = {
         name = "Small Table",
-        width = 1,
+        width = 2,
         height = 1,
         solid = true,
         interactable = false,

@@ -32,6 +32,9 @@ function WorldSaveManager:saveWorld(filename)
         print("Number of NPCs: " .. #self.worldGenerator.world.npcs)
     end
 
+    -- Get serialized furniture data from grid system
+    local gridData = self.gridSystem:serialize()
+
     -- Create a table with all the data we want to save
     local saveData = {
         width = self.gridSystem.width,
@@ -39,6 +42,8 @@ function WorldSaveManager:saveWorld(filename)
         worldSeed = self.worldGenerator.worldSeed,
         foregroundGrid = self.gridSystem.foregroundGrid,
         backgroundGrid = self.gridSystem.backgroundGrid,
+        -- Include furniture data from GridSystem serialization
+        furniture = gridData.furniture,
         -- Save player position if player object exists
         player = hasPlayer and {
             x = self.worldGenerator.world.player.x,
@@ -113,6 +118,29 @@ function WorldSaveManager:loadWorld(filename)
     self.gridSystem.height = saveData.height
     self.gridSystem.foregroundGrid = saveData.foregroundGrid
     self.gridSystem.backgroundGrid = saveData.backgroundGrid
+
+    -- Restore furniture from saved data
+    if saveData.furniture then
+        print("Restoring " .. #saveData.furniture .. " furniture items")
+        -- Clear existing furniture
+        for y = 1, self.gridSystem.height do
+            for x = 1, self.gridSystem.width do
+                self.gridSystem.furnitureGrid[y][x] = nil
+                self.gridSystem.furnitureStateGrid[y][x] = nil
+            end
+        end
+
+        -- Place furniture items
+        for _, furnitureData in ipairs(saveData.furniture) do
+            self.gridSystem:placeFurniture(furnitureData.x, furnitureData.y, furnitureData.type)
+            if furnitureData.state then
+                self.gridSystem:setFurnitureState(furnitureData.x, furnitureData.y, furnitureData.state)
+            end
+        end
+        print("Furniture restored successfully")
+    else
+        print("No furniture data found in save file")
+    end
 
     -- Update the world generator with the saved seed
     if saveData.worldSeed then
