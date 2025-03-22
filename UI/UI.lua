@@ -27,13 +27,85 @@ function UI:drawUI()
         return
     end
 
-    -- Draw current block type indicator (in bottom left)
-    local blockType = self.game.player.selectedBlockType
-    local block = self.game.world.blockRegistry:getBlock(blockType)
+    -- Draw current selected item indicator (in bottom left)
     local blockSize = 32
     local margin = 10
     local labelX = 10
     local labelY = self.game.height - blockSize - margin - 20
+
+    -- Check if we're in furniture mode or block mode
+    if self.game.player.furnitureMode then
+        -- Draw furniture preview
+        local furnitureType = self.game.player.selectedFurnitureType
+        local furniture = self.game.world.furnitureRegistry:getFurniture(furnitureType)
+
+        if furniture then
+            love.graphics.setColor(1, 1, 1, 1)
+            local quad = self.game.world.furnitureRegistry:getQuad(furnitureType)
+
+            if quad then
+                -- Get furniture dimensions
+                local spriteW, spriteH = self.game.world.furnitureRegistry:getSpriteSize(furnitureType)
+                local gridW, gridH = furniture.width, furniture.height
+
+                -- Calculate scale to fit in a reasonable preview area
+                local maxPreviewWidth = blockSize * 2
+                local maxPreviewHeight = blockSize * 2
+                local scaleX = math.min(maxPreviewWidth / spriteW, maxPreviewHeight / spriteH)
+                local scaleY = scaleX
+
+                -- Draw the furniture sprite
+                love.graphics.draw(
+                    self.game.world.furnitureRegistry.spriteSheet,
+                    quad,
+                    labelX,
+                    labelY + 20,
+                    0,  -- rotation
+                    scaleX,
+                    scaleY
+                )
+            else
+                -- Fallback to colored rectangle
+                love.graphics.setColor(furniture.color)
+                love.graphics.rectangle("fill", labelX, labelY + 20, blockSize, blockSize)
+            end
+
+            -- Draw outline
+            love.graphics.setColor(0, 0, 0, 0.5)
+            love.graphics.rectangle("line", labelX, labelY + 20, blockSize, blockSize)
+        end
+    else
+        -- Original block preview code
+        local blockType = self.game.player.selectedBlockType
+        local block = self.game.world.blockRegistry:getBlock(blockType)
+
+        -- Draw block preview
+        love.graphics.setColor(1, 1, 1, 1)
+        if self.game.world.blockRegistry.blockQuads[blockType .. "_TOP"] then
+            -- Calculate scaling to match display size
+            local scaleX = blockSize / self.game.world.blockRegistry.tilesetSize
+            local scaleY = blockSize / self.game.world.blockRegistry.tilesetSize
+
+            -- Draw the sprite
+            love.graphics.draw(
+                self.game.world.blockRegistry.spriteSheet,
+                self.game.world.blockRegistry.blockQuads[blockType .. "_TOP"],
+                labelX,
+                labelY + 20,
+                0,  -- rotation
+                scaleX,
+                scaleY
+            )
+        else
+            -- Fallback to colored rectangle
+            love.graphics.setColor(block.color)
+            love.graphics.rectangle("fill", labelX, labelY + 20, blockSize, blockSize)
+        end
+
+        -- Draw block outline
+        love.graphics.setColor(0, 0, 0, 0.5)
+        love.graphics.rectangle("line", labelX, labelY + 20, blockSize, blockSize)
+    end
 
     -- Draw save/load message if present
     if self.saveMessage then
@@ -55,35 +127,12 @@ function UI:drawUI()
         love.graphics.setColor(1, 1, 1, 1)
     end
 
-    -- Draw block preview
-    love.graphics.setColor(1, 1, 1, 1)
-    if self.game.world.blockRegistry.blockQuads[blockType .. "_TOP"] then
-        -- Calculate scaling to match display size
-        local scaleX = blockSize / self.game.world.blockRegistry.tilesetSize
-        local scaleY = blockSize / self.game.world.blockRegistry.tilesetSize
-
-        -- Draw the sprite
-        love.graphics.draw(
-            self.game.world.blockRegistry.spriteSheet,
-            self.game.world.blockRegistry.blockQuads[blockType .. "_TOP"],
-            labelX,
-            labelY + 20,
-            0,  -- rotation
-            scaleX,
-            scaleY
-        )
+    -- Draw selection hotbar at the bottom of the screen
+    if self.game.player.furnitureMode then
+        self:drawFurnitureHotbar()
     else
-        -- Fallback to colored rectangle
-        love.graphics.setColor(block.color)
-        love.graphics.rectangle("fill", labelX, labelY + 20, blockSize, blockSize)
+        self:drawBlockHotbar()
     end
-
-    -- Draw block outline
-    love.graphics.setColor(0, 0, 0, 0.5)
-    love.graphics.rectangle("line", labelX, labelY + 20, blockSize, blockSize)
-
-    -- Draw block selection hotbar at the bottom of the screen
-    self:drawBlockHotbar()
 end
 
 function UI:drawBlockHotbar()
@@ -287,6 +336,97 @@ end
 
 function UI:drawDebugMenu(page)
     DebugMenu:DrawDebugMenu(page, self.game)
+end
+
+-- Draw the furniture selection hotbar
+function UI:drawFurnitureHotbar()
+    local itemSize = 48  -- Slightly larger than block hotbar for better furniture visibility
+    local margin = 5
+    local totalItems = #self.game.player.furnitureTypes
+    local hotbarWidth = (itemSize + margin) * totalItems - margin
+    local hotbarX = (self.game.width - hotbarWidth) / 2
+    local hotbarY = self.game.height - itemSize - margin
+
+    -- Draw background with different color to distinguish from block hotbar
+    love.graphics.setColor(0.2, 0.2, 0.4, 0.7)  -- Slightly blueish tint
+    love.graphics.rectangle("fill", hotbarX - margin, hotbarY - margin,
+                           hotbarWidth + margin * 2, itemSize + margin * 2, 5, 5)
+
+    -- Draw title to indicate furniture mode
+    love.graphics.setColor(0.8, 0.8, 1, 1)
+    love.graphics.print("FURNITURE MODE (TAB to exit)", hotbarX, hotbarY - 20)
+
+    -- Draw each furniture item in the hotbar
+    for i, furnitureTypeId in ipairs(self.game.player.furnitureTypes) do
+        local furniture = self.game.world.furnitureRegistry:getFurniture(furnitureTypeId)
+        if furniture then
+            local x = hotbarX + (i - 1) * (itemSize + margin)
+            local y = hotbarY
+
+            -- Draw furniture item
+            love.graphics.setColor(1, 1, 1, 1)
+            local quad = self.game.world.furnitureRegistry:getQuad(furnitureTypeId)
+
+            if quad then
+                -- Get furniture dimensions
+                local spriteW, spriteH = self.game.world.furnitureRegistry:getSpriteSize(furnitureTypeId)
+
+                -- Calculate scale to fit in hotbar slot
+                local scaleX = itemSize / spriteW
+                local scaleY = itemSize / spriteH
+
+                -- Use the smaller scale to maintain aspect ratio
+                local scale = math.min(scaleX, scaleY)
+
+                -- Center the sprite in the slot
+                local offsetX = (itemSize - (spriteW * scale)) / 2
+                local offsetY = (itemSize - (spriteH * scale)) / 2
+
+                -- Draw the sprite
+                love.graphics.draw(
+                    self.game.world.furnitureRegistry.spriteSheet,
+                    quad,
+                    x + offsetX,
+                    y + offsetY,
+                    0,  -- rotation
+                    scale,
+                    scale
+                )
+            else
+                -- Fallback to colored rectangle
+                love.graphics.setColor(furniture.color)
+                love.graphics.rectangle("fill", x, y, itemSize, itemSize)
+            end
+
+            -- Draw outline
+            if self.game.player.furnitureTypeIndex == i then
+                -- Highlight selected furniture
+                love.graphics.setColor(1, 1, 1, 1)
+                love.graphics.setLineWidth(3)
+                love.graphics.rectangle("line", x - 2, y - 2, itemSize + 4, itemSize + 4)
+                love.graphics.setLineWidth(1)
+
+                -- Draw name of selected furniture
+                love.graphics.setColor(1, 1, 1, 1)
+                love.graphics.print(furniture.name, x, y + itemSize + 5)
+
+                -- Draw size information
+                love.graphics.setColor(0.8, 0.8, 1, 0.9)
+                love.graphics.print(furniture.width .. "x" .. furniture.height, x, y + itemSize + 20)
+            else
+                love.graphics.setColor(0, 0, 0, 0.5)
+                love.graphics.rectangle("line", x, y, itemSize, itemSize)
+            end
+
+            -- Draw furniture number
+            love.graphics.setColor(1, 1, 1, 1)
+            love.graphics.print(i, x + 5, y + 5)
+        end
+    end
+
+    -- Reset color and line width
+    love.graphics.setColor(1, 1, 1, 1)
+    love.graphics.setLineWidth(1)
 end
 
 return UI

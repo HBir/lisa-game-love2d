@@ -112,13 +112,28 @@ function Inputs:keypressed(key)
         game.showSpriteDebug = game.debugPage > 0
     end
 
+    -- Toggle between block mode and furniture mode with TAB
+    if key == "tab" then
+        game.player:toggleFurnitureMode()
+    end
+
     -- Check for LISA sequence
     game:checkLisaSequence(key)
 
     -- Number keys 1-5 for selecting block types
     local num = tonumber(key)
-    if num and num >= 1 and num <= #game.player.blockTypes then
-        game.player:selectBlockType(num)
+    if num then
+        if game.player.furnitureMode then
+            -- Handle furniture selection (only if the number is valid)
+            if num >= 1 and num <= #game.player.furnitureTypes then
+                game.player:selectBlockType(num)
+            end
+        else
+            -- Handle block selection (only if the number is valid)
+            if num >= 1 and num <= #game.player.blockTypes then
+                game.player:selectBlockType(num)
+            end
+        end
     end
 
     if not game.paused then

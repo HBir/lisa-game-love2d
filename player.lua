@@ -39,6 +39,20 @@ function Player:new(world, x, y)
     }
     self.blockTypeIndex = 1
 
+    -- Furniture types
+    self.furnitureMode = false
+    self.selectedFurnitureType = world.FURNITURE_DOOR
+    self.furnitureTypes = {
+        world.FURNITURE_DOOR,
+        world.FURNITURE_BED,
+        world.FURNITURE_CHAIR,
+        world.FURNITURE_TABLE,
+        world.FURNITURE_BOOKSHELF,
+        world.FURNITURE_SOFA,
+        world.FURNITURE_SMALL_TABLE
+    }
+    self.furnitureTypeIndex = 1
+
     -- Block selection feedback
     self.blockChangeNotification = {
         text = "",
@@ -653,41 +667,70 @@ function Player:keyreleased(key)
 end
 
 function Player:selectBlockType(index)
-    if index >= 1 and index <= #self.blockTypes then
-        self.blockTypeIndex = index
-        self.selectedBlockType = self.blockTypes[self.blockTypeIndex]
+    if self.furnitureMode then
+        -- Select furniture type
+        self.furnitureTypeIndex = index
+        self.selectedFurnitureType = self.furnitureTypes[index]
 
-        -- Update notification with block name
-        local blockName = self.world.blockRegistry.blocks[self.selectedBlockType].name
+        -- Get furniture name
+        local furniture = self.world.furnitureRegistry:getFurniture(self.selectedFurnitureType)
+        local furnitureName = furniture and furniture.name or "Unknown Furniture"
+
+        -- Show notification
+        self.blockChangeNotification.text = "Selected: " .. furnitureName
+        self.blockChangeNotification.timer = self.blockChangeNotification.duration
+    else
+        -- Original block selection code
+        self.blockTypeIndex = index
+        self.selectedBlockType = self.blockTypes[index]
+
+        -- Get block name
+        local block = self.world.blockRegistry:getBlock(self.selectedBlockType)
+        local blockName = block and block.name or "Unknown Block"
+
+        -- Show notification
         self.blockChangeNotification.text = "Selected: " .. blockName
         self.blockChangeNotification.timer = self.blockChangeNotification.duration
     end
 end
 
 function Player:nextBlockType()
-    self.blockTypeIndex = self.blockTypeIndex + 1
-    if self.blockTypeIndex > #self.blockTypes then
-        self.blockTypeIndex = 1
+    if self.furnitureMode then
+        -- Select next furniture type
+        self.furnitureTypeIndex = self.furnitureTypeIndex % #self.furnitureTypes + 1
+        self:selectBlockType(self.furnitureTypeIndex)
+    else
+        -- Original next block type code
+        self.blockTypeIndex = self.blockTypeIndex % #self.blockTypes + 1
+        self:selectBlockType(self.blockTypeIndex)
     end
-    self.selectedBlockType = self.blockTypes[self.blockTypeIndex]
-
-    -- Update notification with block name
-    local blockName = self.world.blockRegistry.blocks[self.selectedBlockType].name
-    self.blockChangeNotification.text = "Selected: " .. blockName
-    self.blockChangeNotification.timer = self.blockChangeNotification.duration
 end
 
 function Player:prevBlockType()
-    self.blockTypeIndex = self.blockTypeIndex - 1
-    if self.blockTypeIndex < 1 then
-        self.blockTypeIndex = #self.blockTypes
+    if self.furnitureMode then
+        -- Select previous furniture type
+        self.furnitureTypeIndex = (self.furnitureTypeIndex - 2) % #self.furnitureTypes + 1
+        self:selectBlockType(self.furnitureTypeIndex)
+    else
+        -- Original previous block type code
+        self.blockTypeIndex = (self.blockTypeIndex - 2) % #self.blockTypes + 1
+        self:selectBlockType(self.blockTypeIndex)
     end
-    self.selectedBlockType = self.blockTypes[self.blockTypeIndex]
+end
 
-    -- Update notification with block name
-    local blockName = self.world.blockRegistry.blocks[self.selectedBlockType].name
-    self.blockChangeNotification.text = "Selected: " .. blockName
-    self.blockChangeNotification.timer = self.blockChangeNotification.duration
+-- Toggle between furniture mode and block mode
+function Player:toggleFurnitureMode()
+    self.furnitureMode = not self.furnitureMode
+
+    if self.furnitureMode then
+        -- Switching to furniture mode
+        self.blockChangeNotification.text = "Furniture Mode"
+        self.blockChangeNotification.timer = self.blockChangeNotification.duration
+    else
+        -- Switching to block mode
+        self.blockChangeNotification.text = "Block Mode"
+        self.blockChangeNotification.timer = self.blockChangeNotification.duration
+    end
 end
 
 return Player
