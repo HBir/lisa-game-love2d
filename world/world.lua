@@ -6,6 +6,7 @@ local AutoTiler = require("world.AutoTiler")
 local WorldRenderer = require("world.WorldRenderer")
 local WorldGenerator = require("WorldGenerator")
 local WorldSaveManager = require("WorldSaveManager")
+local FurnitureRegistry = require("world.FurnitureRegistry")
 
 local World = {}
 World.__index = World
@@ -20,6 +21,9 @@ function World:new(width, height, tileSize)
 
     -- Initialize block registry
     self.blockRegistry = BlockRegistry()
+
+    -- Initialize furniture registry
+    self.furnitureRegistry = FurnitureRegistry()
 
     -- Initialize grid system
     self.gridSystem = GridSystem:new(width, height, self.blockRegistry)
@@ -53,6 +57,13 @@ function World:new(width, height, tileSize)
     -- Code should use self.blockRegistry.BLOCK_X constants directly
     for key, value in pairs(self.blockRegistry) do
         if type(key) == "string" and key:match("^BLOCK_") then
+            self[key] = value
+        end
+    end
+
+    -- Copy furniture type constants to the world object for external access
+    for key, value in pairs(self.furnitureRegistry) do
+        if type(key) == "string" and key:match("^FURNITURE_") then
             self[key] = value
         end
     end
