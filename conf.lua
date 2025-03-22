@@ -8,8 +8,8 @@ function love.conf(t)
     -- Window settings
     t.window.title = "Lisa's Game"
     t.window.icon = nil              -- Path to window icon (can be set later)
-    t.window.width = 800
-    t.window.height = 600
+    t.window.width = 1200
+    t.window.height = 800
     t.window.minwidth = 400
     t.window.minheight = 300
     t.window.resizable = true

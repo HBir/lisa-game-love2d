@@ -1,9 +1,9 @@
 -- World.lua - Main module that coordinates world functionality
 
-local BlockRegistry = require("BlockRegistry")
-local GridSystem = require("GridSystem")
-local AutoTiler = require("AutoTiler")
-local WorldRenderer = require("WorldRenderer")
+local BlockRegistry = require("world.BlockRegistry")
+local GridSystem = require("world.GridSystem")
+local AutoTiler = require("world.AutoTiler")
+local WorldRenderer = require("world.WorldRenderer")
 local WorldGenerator = require("WorldGenerator")
 local WorldSaveManager = require("WorldSaveManager")
 

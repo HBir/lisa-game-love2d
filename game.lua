@@ -1,12 +1,13 @@
 -- Game class that manages the overall game state
 local Camera = require("camera")
-local World = require("world")
+local World = require("world.world")
 local Player = require("player")
 local Chicken = require("npc.chicken")  -- Import the chicken NPC
 local Inputs = require("Inputs")  -- Import the new inputs module
 local ParticleSystem = require("ParticleSystem")
 local UI = require("UI")  -- Import the new UI module
 local Game = {}
+
 Game.__index = Game
 
 function Game:new()
@@ -14,8 +15,10 @@ function Game:new()
 
     -- Game settings
     self.title = "Lisa's Game"
-    self.width = 800
-    self.height = 600
+    local _, _, flags = love.window.getMode()
+    local window_width, window_height = love.window.getDesktopDimensions(flags.display)
+    self.width = window_width
+    self.height = window_height
 
     -- NPC management
     self.npcs = {}  -- Table to store all NPCs
@@ -40,10 +43,10 @@ function Game:load()
     -- Set window properties
     love.window.setTitle(self.title)
     love.window.setMode(self.width, self.height, {
-        resizable = true,
+        resizable = false,
         vsync = true,
-        minwidth = 400,
-        minheight = 300
+        minwidth = 800,
+        minheight = 600
     })
 
     -- Load background image
