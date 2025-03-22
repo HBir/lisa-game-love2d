@@ -1,0 +1,43 @@
+
+.door {
+	background: url('imgs/furniture.png') no-repeat -55px -1px;
+	width: 18px;
+	height: 46px;
+}
+
+
+.bookshelf {
+	background: url('imgs/furniture.png') no-repeat -13px -47px;
+	width: 25px;
+	height: 36px;
+}
+
+.chair {
+	background: url('imgs/furniture.png') no-repeat -58px -66px;
+	width: 14px;
+	height: 27px;
+}
+
+.table {
+	background: url('imgs/furniture.png') no-repeat -115px -71px;
+	width: 40px;
+	height: 24px;
+}
+
+.bed-red {
+	background: url('imgs/furniture.png') no-repeat -99px -176px;
+	width: 48px;
+	height: 24px;
+}
+
+.sofa-blue {
+	background: url('imgs/furniture.png') no-repeat -150px -176px;
+	width: 48px;
+	height: 23px;
+}
+
+.small-table {
+	background: url('imgs/furniture.png') no-repeat -82px -72px;
+	width: 28px;
+	height: 17px;
+}

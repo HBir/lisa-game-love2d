@@ -1,4 +1,3 @@
-
 local DebugMenu = {}
 
 -- Function to draw the sprite debug view
@@ -11,15 +10,11 @@ function DebugMenu:DrawDebugMenu(page, game)
   love.graphics.rectangle("fill", 0, 0, game.width, game.height)
 
   -- Page-specific content
-  if page == 1 or page == 2 then
-      -- SPRITE DEBUG VIEW (page 1 shows top portion, page 2 shows more blocks)
+  if page == 1 then
+      -- BLOCK SPRITE DEBUG VIEW (page 1 shows block sprites)
       -- Draw title with page information
       love.graphics.setColor(1, 1, 1, 1)
-      if page == 1 then
-          love.graphics.print("SPRITE DEBUG VIEW - PAGE 1 (Press X to see more sprites)", 10, 10)
-      else
-          love.graphics.print("SPRITE DEBUG VIEW - PAGE 2 (Press X to close)", 10, 10)
-      end
+      love.graphics.print("BLOCK SPRITE DEBUG VIEW - PAGE 1 (Press X to see furniture sprites)", 10, 10)
 
       -- Get the sprite sheet and tilesize from the block registry
       local spriteSheet = game.world.blockRegistry.spriteSheet
@@ -47,7 +42,7 @@ function DebugMenu:DrawDebugMenu(page, game)
       end)
 
       -- Calculate starting row based on current page
-      local pageOffset = (page - 1) * rowsPerPage
+      local pageOffset = 0
 
       -- Draw each sprite
       local row = 0
@@ -87,7 +82,125 @@ function DebugMenu:DrawDebugMenu(page, game)
 
       -- Show page information at the bottom
       love.graphics.setColor(1, 1, 1, 0.8)
-      love.graphics.print("Showing " .. shownCount .. " of " .. #sortedQuads .. " sprites (Page " .. page .. " of " .. math.ceil(totalRows / rowsPerPage) .. ")",
+      love.graphics.print("Showing " .. shownCount .. " of " .. #sortedQuads .. " block sprites",
+                         10, game.height - 30)
+
+  elseif page == 2 then
+      -- FURNITURE DEBUG VIEW (page 2 shows furniture)
+      -- Draw title with page information
+      love.graphics.setColor(1, 1, 1, 1)
+      love.graphics.print("FURNITURE DEBUG VIEW - PAGE 2 (Press X to see game stats)", 10, 10)
+
+      -- Check if furniture registry exists
+      if not game.world.furnitureRegistry then
+          love.graphics.setColor(1, 0.5, 0.5, 1)
+          love.graphics.print("Furniture Registry not loaded in game world!", 10, 50)
+          return
+      end
+
+      local spriteSheet = game.world.furnitureRegistry.spriteSheet
+      local furnitureTypes = game.world.furnitureRegistry:getAllFurnitureTypes()
+
+      -- Layout settings
+      local startX = 50
+      local startY = 50
+      local gridSize = 32 -- Size of one grid cell
+      local margin = 80   -- Space between different furniture items
+
+      -- Draw each furniture item
+      local currentX = startX
+
+      for i, furnitureType in ipairs(furnitureTypes) do
+          local furniture = game.world.furnitureRegistry:getFurniture(furnitureType)
+          if furniture then
+              local state = furniture.defaultState
+              local quad = game.world.furnitureRegistry:getQuad(furnitureType, state)
+
+              if quad then
+                  -- Get actual dimensions
+                  local spriteW, spriteH = game.world.furnitureRegistry:getSpriteSize(furnitureType)
+                  local gridW = furniture.width
+                  local gridH = furniture.height
+
+                  -- Calculate position
+                  local x = currentX
+                  local y = startY
+
+                  -- Draw grid background
+                  love.graphics.setColor(0.2, 0.2, 0.2, 0.3)
+                  for gx = 0, gridW - 1 do
+                      for gy = 0, gridH - 1 do
+                          love.graphics.rectangle("fill",
+                              x + gx * gridSize,
+                              y + gy * gridSize,
+                              gridSize, gridSize)
+                      end
+                  end
+
+                  -- Draw grid lines
+                  love.graphics.setColor(0.5, 0.5, 0.5, 0.7)
+                  for gx = 0, gridW do
+                      love.graphics.line(
+                          x + gx * gridSize, y,
+                          x + gx * gridSize, y + gridH * gridSize)
+                  end
+                  for gy = 0, gridH do
+                      love.graphics.line(
+                          x, y + gy * gridSize,
+                          x + gridW * gridSize, y + gy * gridSize)
+                  end
+
+                  -- Draw sprite
+                  -- Scale to fit exactly in our grid
+                  local scaleX = (gridW * gridSize) / spriteW
+                  local scaleY = (gridH * gridSize) / spriteH
+
+                  love.graphics.setColor(1, 1, 1, 1)
+                  love.graphics.draw(spriteSheet, quad, x, y, 0, scaleX, scaleY)
+
+                  -- Draw name label
+                  love.graphics.setColor(0, 0, 0, 0.7)
+                  local labelY = y + gridH * gridSize + 5
+                  local textWidth = furniture.name:len() * 8
+                  love.graphics.rectangle("fill", x, labelY, textWidth, 20)
+
+                  love.graphics.setColor(1, 1, 1, 1)
+                  love.graphics.print(furniture.name, x + 5, labelY + 2)
+
+                  -- Draw size info
+                  love.graphics.setColor(0.8, 0.8, 1, 1)
+                  love.graphics.print(gridW .. "x" .. gridH .. " grid", x + 5, labelY + 20)
+
+                  -- Draw solid/interactable state
+                  local stateText = ""
+                  if furniture.solid then
+                      stateText = stateText .. "Solid"
+                  else
+                      stateText = stateText .. "Not Solid"
+                  end
+
+                  if furniture.interactable then
+                      stateText = stateText .. ", Interactive"
+                  end
+
+                  love.graphics.setColor(0.8, 1, 0.8, 1)
+                  love.graphics.print(stateText, x + 5, labelY + 40)
+
+                  -- Move to next position
+                  currentX = currentX + (gridW * gridSize) + margin
+
+                  -- If we've reached the edge of the screen, start a new row
+                  if currentX > game.width - 150 then
+                      currentX = startX
+                      startY = startY + (gridH * gridSize) + 100 -- 100px for labels
+                  end
+              end
+          end
+      end
+
+      -- Information
+      love.graphics.setColor(1, 1, 1, 0.8)
+      love.graphics.print("Showing " .. #furnitureTypes .. " furniture items. Grid cells: 32x32 pixels.",
                          10, game.height - 30)
 
   elseif page == 3 then
