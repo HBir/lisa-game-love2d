@@ -9,6 +9,14 @@ function WorldRenderer:new(gridSystem, blockRegistry, autoTiler, tileSize)
     self.blockRegistry = blockRegistry
     self.autoTiler = autoTiler
     self.tileSize = tileSize
+    self.furnitureRegistry = gridSystem.furnitureRegistry
+
+    -- Initialize furniture placement preview
+    self.showFurniturePreview = false
+    self.previewFurnitureType = nil
+    self.previewX = 0
+    self.previewY = 0
+    self.canPlace = false
 
     return self
 end
@@ -28,6 +36,14 @@ function WorldRenderer:draw(camera)
 
     -- Then draw foreground layer on top
     self:drawLayer(camera, startX, startY, endX, endY, "foreground")
+
+    -- Draw furniture layer
+    self:drawFurniture(camera, startX, startY, endX, endY)
+
+    -- Draw furniture placement preview if active
+    if self.showFurniturePreview and self.previewFurnitureType then
+        self:drawFurniturePreview()
+    end
 
     -- Reset color
     love.graphics.setColor(1, 1, 1, 1)
@@ -93,6 +109,173 @@ function WorldRenderer:drawLayer(camera, startX, startY, endX, endY, layer)
             ::continue::
         end
     end
+end
+
+-- Draw furniture in the visible area
+function WorldRenderer:drawFurniture(camera, startX, startY, endX, endY)
+    -- Set default color
+    love.graphics.setColor(1, 1, 1, 1)
+
+    -- Track furniture origins we've already drawn to avoid duplicates
+    local drawnFurniture = {}
+
+    -- Check each cell in the visible area
+    for y = startY, endY do
+        for x = startX, endX do
+            local furnitureData = self.gridSystem.furnitureGrid[y][x]
+            if furnitureData then
+                -- Get origin coordinates
+                local originX = furnitureData.originX
+                local originY = furnitureData.originY
+
+                -- Create a key to track what we've drawn
+                local key = originX .. "," .. originY
+
+                -- Only draw each furniture item once
+                if not drawnFurniture[key] then
+                    drawnFurniture[key] = true
+
+                    -- Get furniture type and details
+                    local furnitureType = furnitureData.type
+                    local furniture = self.furnitureRegistry:getFurniture(furnitureType)
+
+                    if furniture then
+                        -- Calculate position in pixels
+                        local posX = (originX - 1) * self.tileSize
+                        local posY = (originY - 1) * self.tileSize
+
+                        -- Get furniture state
+                        local state = self.gridSystem:getFurnitureState(originX, originY)
+
+                        -- Get the appropriate quad for this furniture's state
+                        local quadToUse = self.furnitureRegistry:getQuad(furnitureType, state)
+
+                        if quadToUse then
+                            -- Draw the furniture sprite
+                            love.graphics.draw(
+                                self.furnitureRegistry.spriteSheet,
+                                quadToUse,
+                                posX,
+                                posY
+                            )
+                        else
+                            -- Fallback if quad not found: draw colored rectangle
+                            local width = furniture.width * self.tileSize
+                            local height = furniture.height * self.tileSize
+
+                            -- Draw filled rectangle with furniture color
+                            love.graphics.setColor(furniture.color)
+                            love.graphics.rectangle("fill", posX, posY, width, height)
+
+                            -- Draw outline
+                            love.graphics.setColor(0, 0, 0, 0.5)
+                            love.graphics.rectangle("line", posX, posY, width, height)
+
+                            -- Add item name text
+                            love.graphics.setColor(1, 1, 1, 1)
+                            love.graphics.print(furniture.name, posX + 2, posY + 2)
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    -- Reset color
+    love.graphics.setColor(1, 1, 1, 1)
+end
+
+-- Set up the furniture preview
+function WorldRenderer:setFurniturePreview(furnitureType, x, y, canPlace)
+    self.showFurniturePreview = true
+    self.previewFurnitureType = furnitureType
+    self.previewX = x
+    self.previewY = y
+    self.canPlace = canPlace
+end
+
+-- Hide the furniture preview
+function WorldRenderer:hideFurniturePreview()
+    self.showFurniturePreview = false
+end
+
+-- Draw the furniture placement preview
+function WorldRenderer:drawFurniturePreview()
+    if not self.previewFurnitureType then return end
+
+    -- Get furniture details
+    local furniture = self.furnitureRegistry:getFurniture(self.previewFurnitureType)
+    if not furniture then return end
+
+    -- Get grid coordinates
+    local gridX = math.floor(self.previewX / self.tileSize) + 1
+    local gridY = math.floor(self.previewY / self.tileSize) + 1
+
+    -- Calculate pixel position
+    local posX = (gridX - 1) * self.tileSize
+    local posY = (gridY - 1) * self.tileSize
+
+    -- Get dimensions
+    local width = furniture.width * self.tileSize
+    local height = furniture.height * self.tileSize
+
+    -- Set alpha based on placement validity
+    local alpha = self.canPlace and 0.7 or 0.4
+
+    -- Get the quad for default state
+    local state = furniture.defaultState
+    local quadToUse = self.furnitureRegistry:getQuad(self.previewFurnitureType, state)
+
+    if quadToUse then
+        -- Tint green if can place, red if cannot
+        if self.canPlace then
+            love.graphics.setColor(0.7, 1, 0.7, alpha)
+        else
+            love.graphics.setColor(1, 0.7, 0.7, alpha)
+        end
+
+        -- Draw the furniture sprite with transparency
+        love.graphics.draw(
+            self.furnitureRegistry.spriteSheet,
+            quadToUse,
+            posX,
+            posY
+        )
+    else
+        -- Fallback: draw colored rectangle
+        if self.canPlace then
+            love.graphics.setColor(0, 1, 0, alpha)
+        else
+            love.graphics.setColor(1, 0, 0, alpha)
+        end
+
+        love.graphics.rectangle("fill", posX, posY, width, height)
+
+        -- Draw outline
+        love.graphics.setColor(0, 0, 0, alpha)
+        love.graphics.rectangle("line", posX, posY, width, height)
+
+        -- Draw furniture name
+        love.graphics.setColor(1, 1, 1, alpha)
+        love.graphics.print(furniture.name, posX + 2, posY + 2)
+    end
+
+    -- Draw grid outline to show exact placement area
+    love.graphics.setColor(1, 1, 1, 0.5)
+    for y = 0, furniture.height - 1 do
+        for x = 0, furniture.width - 1 do
+            love.graphics.rectangle(
+                "line",
+                posX + (x * self.tileSize),
+                posY + (y * self.tileSize),
+                self.tileSize,
+                self.tileSize
+            )
+        end
+    end
+
+    -- Reset color
+    love.graphics.setColor(1, 1, 1, 1)
 end
 
 return WorldRenderer

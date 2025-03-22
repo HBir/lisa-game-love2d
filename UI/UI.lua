@@ -254,59 +254,48 @@ end
 
 -- Drawing the block placement preview
 function UI:drawBlockPlacementPreview()
-    if self.game.inputs.isPlacingBlock or self.game.inputs.isRemovingBlock then
-        local worldX, worldY = self.game.camera:screenToWorld(self.game.inputs.mouseX, self.game.inputs.mouseY)
+    if self.game.inputs.showPreview or self.game.inputs.isPlacingBlock or self.game.inputs.isRemovingBlock then
+        -- Use the already calculated world coordinates from Inputs
+        local worldX = self.game.inputs.mouseWorldX
+        local worldY = self.game.inputs.mouseWorldY
+
         local gridX = math.floor(worldX / self.game.world.tileSize) + 1
         local gridY = math.floor(worldY / self.game.world.tileSize) + 1
         local pixelX = (gridX - 1) * self.game.world.tileSize
         local pixelY = (gridY - 1) * self.game.world.tileSize
 
-        if self.game.inputs.isPlacingBlock then
-            -- Show preview of block to be placed
-            local blockType = self.game.player.selectedBlockType
-            local block = self.game.world.blockRegistry.blocks[blockType]
+        -- Show preview of block to be placed
+        local blockType = self.game.player.selectedBlockType
+        local block = self.game.world.blockRegistry:getBlock(blockType)
 
-            if self.game.world.blockRegistry.blockQuads[blockType .. "_TOP"] then
-                -- Draw semi-transparent sprite
-                love.graphics.setColor(1, 1, 1, 0.5)
+        -- Get the appropriate quad for this block
+        local quad = self.game.world.blockRegistry:getQuad(blockType, "TOP")
 
-                -- Calculate scaling
-                local scaleX = self.game.world.tileSize / self.game.world.blockRegistry.tilesetSize
-                local scaleY = self.game.world.tileSize / self.game.world.blockRegistry.tilesetSize
+        if quad then
+            -- Draw semi-transparent sprite
+            love.graphics.setColor(1, 1, 1, 0.5)
 
-                -- Draw the sprite
-                love.graphics.draw(
-                    self.game.world.blockRegistry.spriteSheet,
-                    self.game.world.blockRegistry.blockQuads[blockType  .. "_TOP"],
-                    pixelX,
-                    pixelY,
-                    0,  -- rotation
-                    scaleX,
-                    scaleY
-                )
-            else
-                -- Fallback to semi-transparent block
-                love.graphics.setColor(block.color[1], block.color[2], block.color[3], 0.5)
-                love.graphics.rectangle("fill", pixelX, pixelY, self.game.world.tileSize, self.game.world.tileSize)
-            end
-
-            -- Draw outline
-            love.graphics.setColor(1, 1, 1, 0.8)
-            love.graphics.rectangle("line", pixelX, pixelY, self.game.world.tileSize, self.game.world.tileSize)
+            -- Draw the sprite
+            love.graphics.draw(
+                self.game.world.blockRegistry.spriteSheet,
+                quad,
+                pixelX,
+                pixelY
+            )
         else
-            -- Show removal indicator
-            love.graphics.setColor(1, 0, 0, 0.3)
+            -- Fallback to colored rectangle if no sprite is available
+            love.graphics.setColor(block.color[1], block.color[2], block.color[3], 0.5)
             love.graphics.rectangle("fill", pixelX, pixelY, self.game.world.tileSize, self.game.world.tileSize)
 
-            -- Draw X
-            love.graphics.setColor(1, 0, 0, 0.8)
-            love.graphics.line(pixelX, pixelY, pixelX + self.game.world.tileSize, pixelY + self.game.world.tileSize)
-            love.graphics.line(pixelX + self.game.world.tileSize, pixelY, pixelX, pixelY + self.game.world.tileSize)
+            -- Draw outline
+            love.graphics.setColor(0, 0, 0, 0.5)
+            love.graphics.rectangle("line", pixelX, pixelY, self.game.world.tileSize, self.game.world.tileSize)
         end
+
+        -- Reset color
+        love.graphics.setColor(1, 1, 1, 1)
     end
 end
-
-
 
 -- Update the save message timer
 function UI:updateSaveMessage(dt)
@@ -331,8 +320,6 @@ end
 function UI:drawPauseMenu()
    self.pauseMenu:drawPauseMenu()
 end
-
-
 
 function UI:drawDebugMenu(page)
     DebugMenu:DrawDebugMenu(page, self.game)

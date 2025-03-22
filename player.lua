@@ -49,7 +49,7 @@ function Player:new(world, x, y)
         world.FURNITURE_TABLE,
         world.FURNITURE_BOOKSHELF,
         world.FURNITURE_SOFA,
-        world.FURNITURE_SMALL_TABLE
+        world.FURNITURE_SMALL_TABLE,
     }
     self.furnitureTypeIndex = 1
 
@@ -731,6 +731,36 @@ function Player:toggleFurnitureMode()
         self.blockChangeNotification.text = "Block Mode"
         self.blockChangeNotification.timer = self.blockChangeNotification.duration
     end
+end
+
+-- Select furniture type by index
+function Player:selectFurnitureType(index)
+    if index <= 0 or index > #self.furnitureTypes then
+        return
+    end
+
+    self.furnitureTypeIndex = index
+    self.selectedFurnitureType = self.furnitureTypes[index]
+
+    -- Get furniture name
+    local furniture = self.world.furnitureRegistry:getFurniture(self.selectedFurnitureType)
+    local furnitureName = furniture and furniture.name or "Unknown Furniture"
+
+    -- Show notification
+    self.blockChangeNotification.text = "Selected: " .. furnitureName
+    self.blockChangeNotification.timer = self.blockChangeNotification.duration
+end
+
+-- Select next furniture type
+function Player:nextFurnitureType()
+    local nextIndex = self.furnitureTypeIndex % #self.furnitureTypes + 1
+    self:selectFurnitureType(nextIndex)
+end
+
+-- Select previous furniture type
+function Player:prevFurnitureType()
+    local prevIndex = (self.furnitureTypeIndex - 2) % #self.furnitureTypes + 1
+    self:selectFurnitureType(prevIndex)
 end
 
 return Player

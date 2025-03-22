@@ -201,7 +201,7 @@ function DebugMenu:DrawDebugMenu(page, game)
       -- Information
       love.graphics.setColor(1, 1, 1, 0.8)
       love.graphics.print("Showing " .. #furnitureTypes .. " furniture items. Grid cells: 32x32 pixels.",
-                        10, game.height - 30)
+                         10, game.height - 30)
 
   elseif page == 3 then
       -- GAME STATS PAGE (now page 3)

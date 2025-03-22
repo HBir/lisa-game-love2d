@@ -26,7 +26,7 @@ function World:new(width, height, tileSize)
     self.furnitureRegistry = FurnitureRegistry()
 
     -- Initialize grid system
-    self.gridSystem = GridSystem:new(width, height, self.blockRegistry)
+    self.gridSystem = GridSystem:new(width, height, self.blockRegistry, self.furnitureRegistry)
 
     -- Initialize auto-tiler
     self.autoTiler = AutoTiler:new(self.gridSystem, self.blockRegistry)
@@ -126,6 +126,35 @@ end
 -- Load the world
 function World:loadWorld(filename)
     return self.saveManager:loadWorld(filename)
+end
+
+-- Furniture related functions
+
+-- Get furniture at world coordinates
+function World:getFurniture(x, y)
+    return self.gridSystem:getFurniture(x, y, self.tileSize)
+end
+
+-- Place furniture at world coordinates
+function World:placeFurniture(x, y, furnitureType)
+    return self.gridSystem:placeFurnitureWorld(x, y, furnitureType, self.tileSize)
+end
+
+-- Remove furniture at world coordinates
+function World:removeFurniture(x, y)
+    return self.gridSystem:removeFurnitureWorld(x, y, self.tileSize)
+end
+
+-- Get furniture details
+function World:getFurnitureDetails(furnitureType)
+    return self.furnitureRegistry:getFurniture(furnitureType)
+end
+
+-- Check if a position is valid for furniture placement
+function World:canPlaceFurniture(x, y, furnitureType)
+    local gridX = math.floor(x / self.tileSize) + 1
+    local gridY = math.floor(y / self.tileSize) + 1
+    return self.gridSystem:canPlaceFurniture(gridX, gridY, furnitureType)
 end
 
 return World
