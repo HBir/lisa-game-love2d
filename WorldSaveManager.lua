@@ -96,7 +96,7 @@ function WorldSaveManager:loadWorld(filename)
     file:close()
 
     -- Load the data
-    local loadFunc, errorMsg = loadstring(content)
+    local loadFunc, errorMsg = load(content)
     if not loadFunc then
         print("Error parsing save file: " .. (errorMsg or "unknown error"))
         return false, errorMsg

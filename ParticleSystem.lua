@@ -3,6 +3,7 @@ local ParticleSystem = {}
 ParticleSystem.__index = ParticleSystem
 
 -- Compatibility with Lua 5.4 which moved unpack to unpack
+---@diagnostic disable-next-line: deprecated
 local unpack = unpack or table.unpack
 
 function ParticleSystem:new()
