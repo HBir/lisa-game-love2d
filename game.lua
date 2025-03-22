@@ -53,7 +53,7 @@ function Game:load()
     self.backgroundImage = love.graphics.newImage("assets/Tiles/Assets/Background_2.png")
 
     -- Initialize the world
-    self.world = World:new(128, 128, 16) -- width, height, tile size
+    self.world = World:new(256, 256, 16) -- width, height, tile size
     self.world:generate()
 
     -- Find a good starting position near the surface

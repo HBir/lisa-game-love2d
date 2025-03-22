@@ -129,6 +129,13 @@ end
 function Inputs:mousepressed(x, y, button)
     local game = self.game
 
+    -- Check for pause menu interaction if game is paused
+    if game.paused and button == 1 then -- Left click on pause menu
+        if game.ui:handlePauseMenuClick(x, y) then
+            return -- Click handled by the menu
+        end
+    end
+
     if not game.paused then
         -- Convert screen coordinates to world coordinates
         local worldX, worldY = game.camera:screenToWorld(x, y)
