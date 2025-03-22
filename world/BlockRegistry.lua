@@ -12,7 +12,6 @@ BlockRegistry.BLOCK_WOOD = 5
 BlockRegistry.BLOCK_PLATFORM = 6
 BlockRegistry.BLOCK_WOOD_BACKGROUND = 7
 BlockRegistry.BLOCK_STONE_BACKGROUND = 8
-BlockRegistry.REMOVE_BACKGROUND = 9
 
 function BlockRegistry:new()
     local self = setmetatable({}, BlockRegistry)
@@ -103,11 +102,6 @@ function BlockRegistry:initializeSpriteMapping()
             {{15,10},{15,10},{15,10}},
             {{15,10},{15,10},{15,10}}}
         ),
-        self:createBlockWithVariants(self.REMOVE_BACKGROUND,
-            {{{12,14},{12,14},{12,14}},
-            {{12,14},{12,14},{12,14}},
-            {{12,14},{12,14},{12,14}}}
-        ),
     }
 
     for _, blockType in pairs(blockTypes) do
@@ -178,14 +172,6 @@ function BlockRegistry:initializeBlockDefinitions()
         color = {0.1, 0.6, 0.1, 1},
         solid = false,
         sprite = self.sprites[self.BLOCK_LEAVES]
-    }
-
-    blocks[self.REMOVE_BACKGROUND] = {
-        name = "Remove Background",
-        color = {0.8, 0.8, 1, 0.3}, -- Light blue tint to represent "background eraser"
-        solid = false,
-        isBackgroundEraser = true,
-        sprite = nil
     }
 
     blocks[self.BLOCK_STONE_BACKGROUND] = {

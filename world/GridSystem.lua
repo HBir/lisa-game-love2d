@@ -79,12 +79,7 @@ function GridSystem:placeBlock(x, y, blockType, tileSize)
     -- Check if in bounds
     if gridX >= 1 and gridX <= self.width and gridY >= 1 and gridY <= self.height then
         -- Special case for background air - explicitly removes background blocks
-        if blockType == self.blockRegistry.REMOVE_BACKGROUND then
-            self.backgroundGrid[gridY][gridX] = self.blockRegistry.BLOCK_AIR
-            return true
-
-        -- Determine which layer to use based on block solidity
-        elseif not self.blockRegistry:isSolid(blockType) then
+        if not self.blockRegistry:isSolid(blockType) then
             -- Non-solid blocks go to background layer
             -- Can place regardless of what's in foreground
             self.backgroundGrid[gridY][gridX] = blockType

@@ -55,11 +55,19 @@ function Inputs:handleBlockInteraction()
     -- Check if this is a different block than the last one we interacted with
     if gridX ~= self.lastBlockX or gridY ~= self.lastBlockY then
         if self.isRemovingBlock then
-            local blockType = world:getBlock(worldX, worldY)
+            -- Determine which layer to target based on selected block type
+            local targetLayer = nil
+            local selectedBlockType = self.game.player.selectedBlockType
+            -- If the selected block is not solid, it's a background block
+            if not world.blockRegistry:isSolid(selectedBlockType) then
+                targetLayer = "background"
+            end
+
+            local blockType = world:getBlock(worldX, worldY, targetLayer)
             if blockType ~= world.blockRegistry.BLOCK_AIR then
                 -- Create a block removal particle effect before removing the block
                 self.game:emitBlockBreakParticles(worldX, worldY, blockType)
-                world:removeBlock(worldX, worldY)
+                world:removeBlock(worldX, worldY, targetLayer)
             end
         elseif self.isPlacingBlock then
             local success = world:placeBlock(worldX, worldY, self.game.player.selectedBlockType)
@@ -150,11 +158,19 @@ function Inputs:mousepressed(x, y, button)
 
         -- Handle block placement/removal
         if button == 1 then -- Left click
-            local blockType = game.world:getBlock(worldX, worldY)
+            -- Determine which layer to target based on selected block type
+            local targetLayer = nil
+            local selectedBlockType = game.player.selectedBlockType
+            -- If the selected block is not solid, it's a background block
+            if not game.world.blockRegistry:isSolid(selectedBlockType) then
+                targetLayer = "background"
+            end
+
+            local blockType = game.world:getBlock(worldX, worldY, targetLayer)
             if blockType ~= game.world.blockRegistry.BLOCK_AIR then
                 -- Create a block removal particle effect before removing the block
                 game:emitBlockBreakParticles(worldX, worldY, blockType)
-                game.world:removeBlock(worldX, worldY)
+                game.world:removeBlock(worldX, worldY, targetLayer)
             end
             self.isRemovingBlock = true
         elseif button == 2 then -- Right click

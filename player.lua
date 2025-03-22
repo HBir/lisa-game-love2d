@@ -36,7 +36,6 @@ function Player:new(world, x, y)
         world.BLOCK_STONE_BACKGROUND,
         world.BLOCK_TREE,
         world.BLOCK_LEAVES,
-        world.REMOVE_BACKGROUND,
     }
     self.blockTypeIndex = 1
 
