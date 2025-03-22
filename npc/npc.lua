@@ -143,9 +143,9 @@ function NPC:handleCollisions(newX, newY)
         end
 
         -- Check for collision with solid blocks
-        local collisionTop = self.world:isSolid(checkX, self.y - self.height / 2 + 2)
-        local collisionMiddle = self.world:isSolid(checkX, self.y)
-        local collisionBottom = self.world:isSolid(checkX, self.y + self.height / 2 - 2)
+        local collisionTop = self.world:isSolid(checkX, self.y - self.height / 2 + 2, false, false)
+        local collisionMiddle = self.world:isSolid(checkX, self.y, false, false)
+        local collisionBottom = self.world:isSolid(checkX, self.y + self.height / 2 - 2, false, false)
 
         if collisionTop or collisionMiddle or collisionBottom then
             -- If collision, adjust position to edge of block and reverse direction
@@ -165,9 +165,9 @@ function NPC:handleCollisions(newX, newY)
     if self.vy > 0 then -- Falling down
         -- Check below NPC
         local feetY = newY + self.height / 2
-        local groundLeft = self.world:isSolid(self.x - self.width / 2 + 2, feetY)
-        local groundCenter = self.world:isSolid(self.x, feetY)
-        local groundRight = self.world:isSolid(self.x + self.width / 2 - 2, feetY)
+        local groundLeft = self.world:isSolid(self.x - self.width / 2 + 2, feetY, true, false)
+        local groundCenter = self.world:isSolid(self.x, feetY, true, false)
+        local groundRight = self.world:isSolid(self.x + self.width / 2 - 2, feetY, true, false)
 
         if groundLeft or groundCenter or groundRight then
             -- Found ground - snap to top of the block
@@ -178,9 +178,9 @@ function NPC:handleCollisions(newX, newY)
     elseif self.vy < 0 then -- Moving up
         -- Check above NPC
         local headY = newY - self.height / 2
-        local ceilingLeft = self.world:isSolid(self.x - self.width / 2 + 2, headY)
-        local ceilingCenter = self.world:isSolid(self.x, headY)
-        local ceilingRight = self.world:isSolid(self.x + self.width / 2 - 2, headY)
+        local ceilingLeft = self.world:isSolid(self.x - self.width / 2 + 2, headY, false, false)
+        local ceilingCenter = self.world:isSolid(self.x, headY, false, false)
+        local ceilingRight = self.world:isSolid(self.x + self.width / 2 - 2, headY, false, false)
 
         if ceilingLeft or ceilingCenter or ceilingRight then
             -- Hit ceiling - stop upward motion
@@ -202,7 +202,7 @@ function NPC:handleCollisions(newX, newY)
 
         -- Check for ground below the potential ledge
         local ledgeY = self.y + self.height / 2 + 5  -- Check a bit below feet
-        local hasGround = self.world:isSolid(checkX, ledgeY)
+        local hasGround = self.world:isSolid(checkX, ledgeY, true, false)
 
         if not hasGround then
             -- No ground ahead, turn around

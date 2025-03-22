@@ -138,9 +138,39 @@ function GridSystem:removeBlock(x, y, targetLayer, tileSize)
 end
 
 -- Check if a position is solid
-function GridSystem:isSolid(x, y, tileSize)
+function GridSystem:isSolid(x, y, tileSize, movingDown, passThroughPlatforms)
     -- Only check foreground layer for solidity
     local blockType = self:getBlock(x / tileSize, y / tileSize, "foreground")
+
+    -- Check if it's a platform
+    if self.blockRegistry:isPlatform(blockType) then
+        -- If we're explicitly passing through platforms (pressing down while on a platform)
+        if passThroughPlatforms then
+            return false
+        end
+
+        -- If moving up (jumping), allow passing through platforms from below
+        if not movingDown then
+            return false
+        end
+
+        -- For horizontal movement, we need more context. We'll use a heuristic:
+        -- If the check position is near the middle of the entity, it's likely a horizontal check,
+        -- and we should allow passing through the platform
+        local gridY = math.floor(y / tileSize)
+        local posY = y / tileSize
+        local isMidLevel = math.abs(posY - (gridY + 0.5)) < 0.35
+
+        -- If we're checking the middle part of an entity, it's likely a horizontal movement check
+        if isMidLevel then
+            return false
+        end
+
+        -- In all other cases (falling down onto the platform), treat as solid
+        return true
+    end
+
+    -- Regular solidity check for non-platform blocks
     return self.blockRegistry:isSolid(blockType)
 end
 

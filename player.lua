@@ -52,6 +52,7 @@ function Player:new(world, x, y)
         left = {"left", "a"},
         right = {"right", "d"},
         jump = {"up", "w", "space"},
+        down = {"down", "s"}
     }
 
     -- Input state
@@ -59,7 +60,8 @@ function Player:new(world, x, y)
         left = false,
         right = false,
         jump = false,
-        jumpPressed = false
+        jumpPressed = false,
+        down = false
     }
 
     -- Animation state
@@ -324,9 +326,10 @@ function Player:move(dt)
         end
 
         -- Check for collision with solid blocks - use newY for more accurate prediction
-        local collisionTop = self.world:isSolid(checkX, newY - self.height / 2 + 2)
-        local collisionMiddle = self.world:isSolid(checkX, newY)
-        local collisionBottom = self.world:isSolid(checkX, newY + self.height / 2 - 2)
+        -- For horizontal movement, we're not moving down, and we want to pass through platforms
+        local collisionTop = self.world:isSolid(checkX, newY - self.height / 2 + 2, false, false)
+        local collisionMiddle = self.world:isSolid(checkX, newY, false, false)
+        local collisionBottom = self.world:isSolid(checkX, newY + self.height / 2 - 2, false, false)
 
         if collisionTop or collisionMiddle or collisionBottom then
             -- If collision, adjust position to edge of block
@@ -343,11 +346,14 @@ function Player:move(dt)
 
     -- Vertical collision detection - simplified approach
     if self.vy > 0 then -- Falling down
+        -- Check if player wants to drop through platforms
+        local passThroughPlatforms = self.input.down
+
         -- Check below player
         local feetY = newY + self.height / 2
-        local groundLeft = self.world:isSolid(self.x - self.width / 2 + 2, feetY)
-        local groundCenter = self.world:isSolid(self.x, feetY)
-        local groundRight = self.world:isSolid(self.x + self.width / 2 - 2, feetY)
+        local groundLeft = self.world:isSolid(self.x - self.width / 2 + 2, feetY, true, passThroughPlatforms)
+        local groundCenter = self.world:isSolid(self.x, feetY, true, passThroughPlatforms)
+        local groundRight = self.world:isSolid(self.x + self.width / 2 - 2, feetY, true, passThroughPlatforms)
 
         if groundLeft or groundCenter or groundRight then
             -- Found ground - snap to top of the block
@@ -360,9 +366,9 @@ function Player:move(dt)
     elseif self.vy < 0 then -- Moving up
         -- Check above player
         local headY = newY - self.height / 2
-        local ceilingLeft = self.world:isSolid(self.x - self.width / 2 + 2, headY)
-        local ceilingCenter = self.world:isSolid(self.x, headY)
-        local ceilingRight = self.world:isSolid(self.x + self.width / 2 - 2, headY)
+        local ceilingLeft = self.world:isSolid(self.x - self.width / 2 + 2, headY, false, false)
+        local ceilingCenter = self.world:isSolid(self.x, headY, false, false)
+        local ceilingRight = self.world:isSolid(self.x + self.width / 2 - 2, headY, false, false)
 
         if ceilingLeft or ceilingCenter or ceilingRight then
             -- Hit ceiling - stop upward motion
@@ -377,9 +383,12 @@ function Player:move(dt)
         local snapDistance = 2 -- Pixels to check below
         local checkY = newY + self.height / 2 + snapDistance
 
-        local groundLeft = self.world:isSolid(self.x - self.width / 2 + 2, checkY)
-        local groundCenter = self.world:isSolid(self.x, checkY)
-        local groundRight = self.world:isSolid(self.x + self.width / 2 - 2, checkY)
+        -- Check if player wants to drop through platforms
+        local passThroughPlatforms = self.input.down
+
+        local groundLeft = self.world:isSolid(self.x - self.width / 2 + 2, checkY, true, passThroughPlatforms)
+        local groundCenter = self.world:isSolid(self.x, checkY, true, passThroughPlatforms)
+        local groundRight = self.world:isSolid(self.x + self.width / 2 - 2, checkY, true, passThroughPlatforms)
 
         if groundLeft or groundCenter or groundRight then
             -- We're very close to ground, just snap to it

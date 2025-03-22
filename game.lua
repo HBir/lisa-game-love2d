@@ -137,7 +137,7 @@ end
 function Game:findGroundLevel(x)
     for y = 1, self.world.height do
         local worldY = y * self.world.tileSize
-        if self.world:isSolid(x, worldY) then
+        if self.world:isSolid(x, worldY, true, false) then
             return worldY
         end
     end
@@ -444,6 +444,23 @@ end
 -- Create an explosion effect at the specified position
 function Game:createExplosion(x, y, colors)
     self.particles:createExplosion(x, y, colors)
+end
+
+-- Raycast from screen position to find block
+local function raycast(x, y)
+    -- Convert screen position to world position
+    local worldX, worldY = camera:screenToWorld(x, y)
+
+    -- Find closest block position that the ray hits
+    local tileX = math.floor(worldX / self.world.tileSize)
+    local tileY = math.floor(worldY / self.world.tileSize)
+
+    -- Check if there's a block at that position
+    if self.world:isSolid(worldX, worldY, false, false) then
+        return tileX, tileY
+    end
+
+    return nil, nil
 end
 
 return Game

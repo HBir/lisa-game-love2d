@@ -162,6 +162,7 @@ function BlockRegistry:initializeBlockDefinitions()
         name = "Platform",
         color = {0.7, 0.5, 0.3, 0.8},
         solid = true,
+        isPlatform = true,
         sprite = self.sprites[self.BLOCK_PLATFORM]
     }
 
@@ -252,6 +253,11 @@ end
 function BlockRegistry:isSolid(blockType)
     local block = self.blocks[blockType]
     return block and block.solid
+end
+
+function BlockRegistry:isPlatform(blockType)
+    local block = self.blocks[blockType]
+    return block and block.isPlatform
 end
 
 -- Export the constants directly on the module for convenience

@@ -93,8 +93,8 @@ function World:removeBlock(x, y, targetLayer)
 end
 
 -- Check if a position is solid
-function World:isSolid(x, y)
-    return self.gridSystem:isSolid(x, y, self.tileSize)
+function World:isSolid(x, y, movingDown, passThroughPlatforms)
+    return self.gridSystem:isSolid(x, y, self.tileSize, movingDown, passThroughPlatforms)
 end
 
 -- Draw the world
