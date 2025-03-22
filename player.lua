@@ -31,11 +31,12 @@ function Player:new(world, x, y)
         world.BLOCK_DIRT,
         world.BLOCK_STONE,
         world.BLOCK_WOOD,
+        world.BLOCK_PLATFORM,
         world.BLOCK_WOOD_BACKGROUND,
         world.BLOCK_STONE_BACKGROUND,
         world.BLOCK_TREE,
         world.BLOCK_LEAVES,
-        world.REMOVE_BACKGROUND
+        world.REMOVE_BACKGROUND,
     }
     self.blockTypeIndex = 1
 

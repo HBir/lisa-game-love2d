@@ -222,7 +222,7 @@ function UI:drawBlockPlacementPreview()
 
                 -- Draw the sprite
                 love.graphics.draw(
-                    self.game.world.spriteSheet,
+                    self.game.world.blockRegistry.spriteSheet,
                     self.game.world.blockRegistry.blockQuads[blockType  .. "_TOP"],
                     pixelX,
                     pixelY,

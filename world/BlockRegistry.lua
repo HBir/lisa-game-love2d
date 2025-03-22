@@ -9,9 +9,10 @@ BlockRegistry.BLOCK_STONE = 2
 BlockRegistry.BLOCK_TREE = 3
 BlockRegistry.BLOCK_LEAVES = 4
 BlockRegistry.BLOCK_WOOD = 5
-BlockRegistry.BLOCK_WOOD_BACKGROUND = 6
-BlockRegistry.BLOCK_STONE_BACKGROUND = 7
-BlockRegistry.REMOVE_BACKGROUND = 8
+BlockRegistry.BLOCK_PLATFORM = 6
+BlockRegistry.BLOCK_WOOD_BACKGROUND = 7
+BlockRegistry.BLOCK_STONE_BACKGROUND = 8
+BlockRegistry.REMOVE_BACKGROUND = 9
 
 function BlockRegistry:new()
     local self = setmetatable({}, BlockRegistry)
@@ -76,6 +77,11 @@ function BlockRegistry:initializeSpriteMapping()
             {{{5,8},{5,8},{5,8}},
             {{5,8},{5,8},{5,8}},
             {{5,8},{5,8},{5,8}}}
+        ),
+        self:createBlockWithVariants(self.BLOCK_PLATFORM,
+            {{{4,5},{4,3},{6,5}},
+            {{4,5},{4,3},{6,5}},
+            {{4,5},{4,3},{6,5}}}
         ),
         self:createBlockWithVariants(self.BLOCK_LEAVES,
             {{{11,11},{12,11},{13,11}},
@@ -150,6 +156,13 @@ function BlockRegistry:initializeBlockDefinitions()
         color = {0.8, 0.6, 0.4, 1},
         solid = true,
         sprite = self.sprites[self.BLOCK_WOOD]
+    }
+
+    blocks[self.BLOCK_PLATFORM] = {
+        name = "Platform",
+        color = {0.7, 0.5, 0.3, 0.8},
+        solid = true,
+        sprite = self.sprites[self.BLOCK_PLATFORM]
     }
 
     blocks[self.BLOCK_WOOD_BACKGROUND] = {
