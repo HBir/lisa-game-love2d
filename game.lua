@@ -148,8 +148,8 @@ function Game:spawnInitialNPCs()
     -- Define spawn points with different creature types
     local spawnPoints = {
         {x = playerX - 200, offset = 0, type = "chicken"},
-        {x = playerX + 300, offset = 0, type = "fox"},
-        {x = playerX - 400, offset = 0, type = "bunny"}
+        {x = playerX + 300, offset = 0, type = "chicken"},
+        {x = playerX - 400, offset = 0, type = "lilly"}
     }
 
     for _, point in ipairs(spawnPoints) do

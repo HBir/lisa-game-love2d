@@ -4,6 +4,21 @@ local NPC = require("npc.npc")
 local OverworldCreature = setmetatable({}, NPC)
 OverworldCreature.__index = OverworldCreature
 
+function createOverWorldQuads(framesSpecArray)
+  if not framesSpecArray then
+    return nil
+  end
+
+  local spriteSheet = love.graphics.newImage(framesSpecArray.sheet)
+
+  local frames = {}
+  for i, frameSpec in ipairs(framesSpecArray) do
+    frames[i] = love.graphics.newQuad(frameSpec.x, frameSpec.y, frameSpec.width, frameSpec.height, spriteSheet:getDimensions())
+  end
+  return frames
+end
+
+
 function OverworldCreature:new(world, x, y, creatureType, level)
     -- Create a new instance using NPC's constructor
     local self = NPC.new(self, world, x, y, 16, 14)  -- Width 16, height 14
@@ -26,51 +41,14 @@ function OverworldCreature:new(world, x, y, creatureType, level)
 
     -- Animation frames setup based on the CSS coordinates
     -- The CSS shows exact pixel locations for each frame
+    
+
+    local idleFrames = createOverWorldQuads(creatureType.animations.idle)
+    local walkFrames = createOverWorldQuads(creatureType.animations.walk)
+
     self.animation.frames = {
-        idle = {
-            { -- idle1: x=7, y=16, width=17, height=16
-                quad = love.graphics.newQuad(7, 16, 17, 16, self.spriteSheet:getDimensions()),
-                offsetX = 0,
-                offsetY = 0
-            },
-            { -- idle2: x=39, y=16, width=17, height=16
-                quad = love.graphics.newQuad(39, 16, 17, 16, self.spriteSheet:getDimensions()),
-                offsetX = 0,
-                offsetY = 0
-            },
-            { -- idle3: x=71, y=16, width=17, height=16
-                quad = love.graphics.newQuad(71, 16, 17, 16, self.spriteSheet:getDimensions()),
-                offsetX = 0,
-                offsetY = 0
-            },
-            { -- idle4: x=103, y=16, width=17, height=16
-                quad = love.graphics.newQuad(103, 16, 17, 16, self.spriteSheet:getDimensions()),
-                offsetX = 0,
-                offsetY = 0
-            }
-        },
-        walk = {
-            { -- walk1: x=7, y=48, width=17, height=16
-                quad = love.graphics.newQuad(7, 48, 17, 16, self.spriteSheet:getDimensions()),
-                offsetX = 0,
-                offsetY = 0
-            },
-            { -- walk2: x=39, y=48, width=17, height=16
-                quad = love.graphics.newQuad(39, 48, 17, 16, self.spriteSheet:getDimensions()),
-                offsetX = 0,
-                offsetY = 0
-            },
-            { -- walk3: x=71, y=48, width=17, height=16
-                quad = love.graphics.newQuad(71, 48, 17, 16, self.spriteSheet:getDimensions()),
-                offsetX = 0,
-                offsetY = 0
-            },
-            { -- walk4: x=103, y=48, width=17, height=16
-                quad = love.graphics.newQuad(103, 48, 17, 16, self.spriteSheet:getDimensions()),
-                offsetX = 0,
-                offsetY = 0
-            }
-        }
+        idle = idleFrames,
+        walk = walkFrames or idleFrames
     }
 
     -- Apply custom appearance based on creature type
@@ -182,7 +160,7 @@ function OverworldCreature:draw()
 
     -- Draw level indicator for catchable creatures
     love.graphics.setColor(1, 1, 1, 1)
-    love.graphics.print("Lv" .. self.level, self.x - 8, self.y - self.height/2 - 15)
+    love.graphics.print(self.creatureType .. " Lv" .. self.level, self.x - 8, self.y - self.height/2 - 15)
 
     -- Debug visualization (if enabled)
     if self.world.game and self.world.game.showDebugOverlay then

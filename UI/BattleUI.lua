@@ -41,8 +41,8 @@ function BattleUI:drawTeamOverview()
     local width, height = love.graphics.getDimensions()
 
     -- Draw background
-    love.graphics.setColor(0, 0, 0, 0.9)
-    love.graphics.rectangle("fill", 0, 0, width, height)
+    -- love.graphics.setColor(0, 0, 0, 0.9)
+    -- love.graphics.rectangle("fill", 0, 0, width, height)
 
     -- Draw title
     love.graphics.setColor(1, 1, 1, 1)

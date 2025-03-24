@@ -494,32 +494,48 @@ function BattleSystem:draw()
 
     local width, height = love.graphics.getDimensions()
 
-    -- Draw battle background
-    love.graphics.setColor(0, 0, 0, 0.8)
-    love.graphics.rectangle("fill", 0, 0, width, height)
+    -- Create a smaller battle area in the center of the screen
+    local battleAreaWidth = width * 0.8
+    local battleAreaHeight = height * 0.7
+    local battleX = (width - battleAreaWidth) / 2
+    local battleY = (height - battleAreaHeight) / 2
 
-    -- Draw enemy creature
+    -- Draw semi-transparent battle background
+    love.graphics.setColor(0, 0, 0, 0.7)
+    love.graphics.rectangle("fill", battleX, battleY, battleAreaWidth, battleAreaHeight, 15, 15)
+
+    -- Draw decorative border
+    love.graphics.setColor(0.3, 0.3, 0.6, 0.8)
+    love.graphics.setLineWidth(3)
+    love.graphics.rectangle("line", battleX, battleY, battleAreaWidth, battleAreaHeight, 15, 15)
+    love.graphics.setLineWidth(1)
+
+    -- Draw enemy creature - positioned in top right of battle area
     if self.enemyCreature then
-        self:drawCreature(self.enemyCreature, width * 0.75, height * 0.33, 2, "enemy")
+        local enemyX = battleX + battleAreaWidth * 0.75
+        local enemyY = battleY + battleAreaHeight * 0.3
+        self:drawCreature(self.enemyCreature, enemyX, enemyY, 1.8, "enemy")
     end
 
-    -- Draw player creature
+    -- Draw player creature - positioned in bottom left of battle area
     if self.playerCreature then
-        self:drawCreature(self.playerCreature, width * 0.25, height * 0.66, 2, "player")
+        local playerX = battleX + battleAreaWidth * 0.25
+        local playerY = battleY + battleAreaHeight * 0.7
+        self:drawCreature(self.playerCreature, playerX, playerY, 1.8, "player")
     end
 
     -- Draw UI based on current state
     if self.state == "choosingAction" then
-        self:drawActionMenu(width, height)
+        self:drawActionMenu(width, height, battleX, battleY, battleAreaWidth, battleAreaHeight)
     elseif self.state == "choosingMove" then
-        self:drawMoveMenu(width, height)
+        self:drawMoveMenu(width, height, battleX, battleY, battleAreaWidth, battleAreaHeight)
     elseif self.state == "choosingCreature" then
-        self:drawCreatureMenu(width, height)
+        self:drawCreatureMenu(width, height, battleX, battleY, battleAreaWidth, battleAreaHeight)
     end
 
     -- Draw message box
     if self.messageTimer > 0 then
-        self:drawMessageBox(width, height)
+        self:drawMessageBox(width, height, battleX, battleY, battleAreaWidth, battleAreaHeight)
     end
 end
 
@@ -565,10 +581,15 @@ function BattleSystem:drawCreature(creature, x, y, scale, position)
 end
 
 -- Draw the action selection menu
-function BattleSystem:drawActionMenu(width, height)
+function BattleSystem:drawActionMenu(width, height, battleX, battleY, battleAreaWidth, battleAreaHeight)
     -- Draw menu background
+    local menuWidth = battleAreaWidth * 0.35
+    local menuHeight = battleAreaHeight * 0.25
+    local menuX = battleX + battleAreaWidth - menuWidth - 20
+    local menuY = battleY + battleAreaHeight - menuHeight - 20
+
     love.graphics.setColor(0.2, 0.2, 0.4, 0.9)
-    love.graphics.rectangle("fill", width * 0.6, height * 0.7, width * 0.35, height * 0.25, 10, 10)
+    love.graphics.rectangle("fill", menuX, menuY, menuWidth, menuHeight, 10, 10)
 
     -- Draw action options
     for i, action in ipairs(self.actionOptions) do
@@ -578,19 +599,24 @@ function BattleSystem:drawActionMenu(width, height)
             love.graphics.setColor(1, 1, 1, 1)
         end
 
-        love.graphics.print(action, width * 0.65, height * 0.72 + (i - 1) * 30)
+        love.graphics.print(action, menuX + 15, menuY + 10 + (i - 1) * 25)
     end
 end
 
 -- Draw the move selection menu
-function BattleSystem:drawMoveMenu(width, height)
+function BattleSystem:drawMoveMenu(width, height, battleX, battleY, battleAreaWidth, battleAreaHeight)
     -- Draw menu background
+    local menuWidth = battleAreaWidth * 0.9
+    local menuHeight = battleAreaHeight * 0.25
+    local menuX = battleX + (battleAreaWidth - menuWidth) / 2
+    local menuY = battleY + battleAreaHeight - menuHeight - 10
+
     love.graphics.setColor(0.2, 0.2, 0.4, 0.9)
-    love.graphics.rectangle("fill", width * 0.1, height * 0.7, width * 0.8, height * 0.25, 10, 10)
+    love.graphics.rectangle("fill", menuX, menuY, menuWidth, menuHeight, 10, 10)
 
     -- Draw move options
     love.graphics.setColor(1, 1, 1, 1)
-    love.graphics.print("MOVES:", width * 0.15, height * 0.72)
+    love.graphics.print("MOVES:", menuX + 15, menuY + 10)
 
     for i, move in ipairs(self.playerCreature.moves) do
         if i == self.selectedMoveIndex then
@@ -600,25 +626,30 @@ function BattleSystem:drawMoveMenu(width, height)
         end
 
         -- Draw move name and power
-        love.graphics.print(move.name, width * 0.2, height * 0.75 + (i - 1) * 30)
-        love.graphics.print("Power: " .. move.power, width * 0.4, height * 0.75 + (i - 1) * 30)
-        love.graphics.print("Type: " .. move.type, width * 0.6, height * 0.75 + (i - 1) * 30)
+        love.graphics.print(move.name, menuX + 20, menuY + 35 + (i - 1) * 25)
+        love.graphics.print("Power: " .. move.power, menuX + menuWidth * 0.4, menuY + 35 + (i - 1) * 25)
+        love.graphics.print("Type: " .. move.type, menuX + menuWidth * 0.7, menuY + 35 + (i - 1) * 25)
     end
 
     -- Draw instruction to go back
     love.graphics.setColor(0.7, 0.7, 0.7, 1)
-    love.graphics.print("Press ESC to go back", width * 0.6, height * 0.92)
+    love.graphics.print("Press ESC to go back", menuX + menuWidth * 0.7, menuY + menuHeight - 20)
 end
 
 -- Draw the creature selection menu
-function BattleSystem:drawCreatureMenu(width, height)
+function BattleSystem:drawCreatureMenu(width, height, battleX, battleY, battleAreaWidth, battleAreaHeight)
     -- Draw menu background
+    local menuWidth = battleAreaWidth * 0.9
+    local menuHeight = battleAreaHeight * 0.35
+    local menuX = battleX + (battleAreaWidth - menuWidth) / 2
+    local menuY = battleY + battleAreaHeight - menuHeight - 10
+
     love.graphics.setColor(0.2, 0.2, 0.4, 0.9)
-    love.graphics.rectangle("fill", width * 0.1, height * 0.6, width * 0.8, height * 0.35, 10, 10)
+    love.graphics.rectangle("fill", menuX, menuY, menuWidth, menuHeight, 10, 10)
 
     -- Draw title
     love.graphics.setColor(1, 1, 1, 1)
-    love.graphics.print("SWITCH CREATURE:", width * 0.15, height * 0.62)
+    love.graphics.print("SWITCH CREATURE:", menuX + 15, menuY + 10)
 
     -- Draw creature options
     for i, creature in ipairs(self.playerTeam.creatures) do
@@ -634,12 +665,12 @@ function BattleSystem:drawCreatureMenu(width, height)
         end
 
         -- Draw creature info
-        local y = height * 0.65 + (i - 1) * 30
-        love.graphics.print(creature.name .. " Lv." .. creature.level, width * 0.15, y)
+        local y = menuY + 40 + (i - 1) * 25
+        love.graphics.print(creature.name .. " Lv." .. creature.level, menuX + 20, y)
 
         -- Draw HP
         local hpText = creature.currentHp .. "/" .. creature.stats.hp .. " HP"
-        love.graphics.print(hpText, width * 0.4, y)
+        love.graphics.print(hpText, menuX + menuWidth * 0.4, y)
 
         -- Draw status
         local status = "Normal"
@@ -648,23 +679,28 @@ function BattleSystem:drawCreatureMenu(width, height)
         elseif i == self.playerTeam.activeCreatureIndex then
             status = "Active"
         end
-        love.graphics.print(status, width * 0.6, y)
+        love.graphics.print(status, menuX + menuWidth * 0.7, y)
     end
 
     -- Draw instruction to go back
     love.graphics.setColor(0.7, 0.7, 0.7, 1)
-    love.graphics.print("Press ESC to go back", width * 0.6, height * 0.92)
+    love.graphics.print("Press ESC to go back", menuX + menuWidth * 0.7, menuY + menuHeight - 20)
 end
 
 -- Draw message box
-function BattleSystem:drawMessageBox(width, height)
-    -- Draw message background
+function BattleSystem:drawMessageBox(width, height, battleX, battleY, battleAreaWidth, battleAreaHeight)
+    -- Draw message background at the top of the battle area
+    local messageBoxWidth = battleAreaWidth * 0.9
+    local messageBoxHeight = battleAreaHeight * 0.15
+    local messageBoxX = battleX + (battleAreaWidth - messageBoxWidth) / 2
+    local messageBoxY = battleY + 10
+
     love.graphics.setColor(0, 0, 0, 0.8)
-    love.graphics.rectangle("fill", width * 0.1, height * 0.1, width * 0.8, height * 0.15, 10, 10)
+    love.graphics.rectangle("fill", messageBoxX, messageBoxY, messageBoxWidth, messageBoxHeight, 10, 10)
 
     -- Draw message text
     love.graphics.setColor(1, 1, 1, 1)
-    love.graphics.print(self.messageText, width * 0.15, height * 0.15)
+    love.graphics.print(self.messageText, messageBoxX + 15, messageBoxY + messageBoxHeight/2 - 10)
 end
 
 return BattleSystem

@@ -127,6 +127,7 @@ function CreatureRegistry:registerDefaultCreatures()
             sheet = "assets/Overworld/chicken.png",
             animations = {
                 idle = {
+                    sheet = "assets/Overworld/chicken.png",
                     frames = {
                         { x = 7, y = 16, width = 17, height = 16 },
                         { x = 39, y = 16, width = 17, height = 16 },
@@ -134,6 +135,8 @@ function CreatureRegistry:registerDefaultCreatures()
                         { x = 103, y = 16, width = 17, height = 16 }
                     },
                     frameTime = 0.2
+                }, walk = {
+
                 }
             },
             spriteInfo = {
@@ -144,116 +147,32 @@ function CreatureRegistry:registerDefaultCreatures()
 
     -- Add more creatures here
     self:registerCreature(
-        "bunny",
-        "Bunny",
+        "lilly",
+        "Lilly",
         { hp = 18, attack = 3, speed = 9 },
         {
             { name = "Tackle" },
             { name = "Growl" }
         },
         {
-            sheet = "assets/Overworld/chicken.png", -- Using chicken sprite as fallback
+            sheet = "assets/Monsters/Lilly.png",
             animations = {
                 idle = {
+                    sheet = "assets/Monsters/Lilly.png",
                     frames = {
-                        { x = 7, y = 16, width = 17, height = 16 },
-                        { x = 39, y = 16, width = 17, height = 16 },
-                        { x = 71, y = 16, width = 17, height = 16 },
-                        { x = 103, y = 16, width = 17, height = 16 }
+                        { x = 0, y = 0, width = 64, height = 64 },
+                        { x = 64, y = 0, width = 64, height = 64 },
+                        { x = 128, y = 0, width = 64, height = 64 },
                     },
                     frameTime = 0.2
                 }
             },
             spriteInfo = {
-                sheet = "assets/Overworld/chicken.png" -- Will fallback to chicken sprite
+                sheet = "assets/Monsters/Lilly.png" -- Will fallback to chicken sprite
             }
         }
     )
 
-    self:registerCreature(
-        "fox",
-        "Fox",
-        { hp = 25, attack = 6, speed = 6 },
-        {
-            { name = "Scratch" },
-            { name = "Tackle" }
-        },
-        {
-            sheet = "assets/Overworld/chicken.png", -- Using chicken sprite as fallback
-            animations = {
-                idle = {
-                    frames = {
-                        { x = 7, y = 16, width = 17, height = 16 },
-                        { x = 39, y = 16, width = 17, height = 16 },
-                        { x = 71, y = 16, width = 17, height = 16 },
-                        { x = 103, y = 16, width = 17, height = 16 }
-                    },
-                    frameTime = 0.2
-                }
-            },
-            spriteInfo = {
-                sheet = "assets/Overworld/chicken.png" -- Will fallback to chicken sprite
-            }
-        }
-    )
-
-    -- Add some additional creatures
-    self:registerCreature(
-        "rat",
-        "Rat",
-        { hp = 15, attack = 5, speed = 8 },
-        {
-            { name = "Tackle" },
-            { name = "Growl" }
-        },
-        {
-            sheet = "assets/Overworld/chicken.png", -- Using chicken sprite as fallback
-            animations = {
-                idle = {
-                    frames = {
-                        { x = 7, y = 16, width = 17, height = 16 },
-                        { x = 39, y = 16, width = 17, height = 16 },
-                        { x = 71, y = 16, width = 17, height = 16 },
-                        { x = 103, y = 16, width = 17, height = 16 }
-                    },
-                    frameTime = 0.2
-                }
-            },
-            spriteInfo = {
-                sheet = "assets/Overworld/chicken.png"
-            }
-        }
-    )
-
-    self:registerCreature(
-        "wolf",
-        "Wolf",
-        { hp = 30, attack = 8, speed = 7 },
-        {
-            { name = "Scratch" },
-            { name = "Growl" },
-            { name = "Tackle" }
-        },
-        {
-            sheet = "assets/Overworld/chicken.png", -- Using chicken sprite as fallback
-            animations = {
-                idle = {
-                    frames = {
-                        { x = 7, y = 16, width = 17, height = 16 },
-                        { x = 39, y = 16, width = 17, height = 16 },
-                        { x = 71, y = 16, width = 17, height = 16 },
-                        { x = 103, y = 16, width = 17, height = 16 }
-                    },
-                    frameTime = 0.2
-                }
-            },
-            spriteInfo = {
-                sheet = "assets/Overworld/chicken.png"
-            }
-        }
-    )
-
-    -- You can add more creatures here
 end
 
 -- Get a list of all registered creature types
