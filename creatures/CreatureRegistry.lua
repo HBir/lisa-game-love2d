@@ -51,15 +51,59 @@ function CreatureRegistry:createCreature(id, level)
         creature:learnMove(move)
     end
 
-    -- Set sprite information
+    -- Load default chicken sprite sheet as fallback
+    local defaultSpriteSheet = "assets/Overworld/chicken.png"
+    if not self.spriteSheets[defaultSpriteSheet] then
+        self.spriteSheets[defaultSpriteSheet] = love.graphics.newImage(defaultSpriteSheet)
+    end
+
+    -- Assign default chicken sheet as a fallback
+    creature.spriteSheet = self.spriteSheets[defaultSpriteSheet]
+
+    -- Default chicken animation frames as fallback (only idle animation needed now)
+    local defaultAnimations = {
+        idle = {
+            frames = {
+                { x = 7, y = 16, width = 17, height = 16 },
+                { x = 39, y = 16, width = 17, height = 16 },
+                { x = 71, y = 16, width = 17, height = 16 },
+                { x = 103, y = 16, width = 17, height = 16 }
+            },
+            frameTime = 0.2
+        }
+    }
+
+    -- Initialize with default animations
+    creature.animations = defaultAnimations
+
+    -- Override with custom sprite if available
     if creatureType.spriteInfo and creatureType.spriteInfo.sheet then
-        -- Load sprite sheet if not already loaded
+        -- Load custom sprite sheet if not already loaded
         if not self.spriteSheets[creatureType.spriteInfo.sheet] then
             self.spriteSheets[creatureType.spriteInfo.sheet] = love.graphics.newImage(creatureType.spriteInfo.sheet)
         end
 
+        -- Replace default with custom sprite sheet
         creature.spriteSheet = self.spriteSheets[creatureType.spriteInfo.sheet]
-        creature.animations = creatureType.spriteInfo.animations
+    end
+
+    -- Override with custom animations if available (just idle animation)
+    if creatureType.animations and creatureType.animations.idle then
+        if creatureType.animations.idle.frames and #creatureType.animations.idle.frames > 0 then
+            creature.animations.idle = creatureType.animations.idle
+        else
+            print("Warning: Idle animation for creature " .. id .. " has missing frames, using default.")
+        end
+    end
+
+    -- Initialize animation state
+    creature.currentAnimation = "idle"
+    creature.animationFrame = 1
+    creature.animationTimer = 0
+
+    -- Set animation frame time if provided
+    if creature.animations.idle and creature.animations.idle.frameTime then
+        creature.animationFrameTime = creature.animations.idle.frameTime
     end
 
     -- Set creature ID for reference
@@ -83,20 +127,17 @@ function CreatureRegistry:registerDefaultCreatures()
             sheet = "assets/Overworld/chicken.png",
             animations = {
                 idle = {
-                    frames = { { x = 0, y = 0, width = 16, height = 16 } },
-                    frameTime = 0.2
-                },
-                attack = {
                     frames = {
-                        { x = 16, y = 0, width = 16, height = 16 },
-                        { x = 32, y = 0, width = 16, height = 16 }
+                        { x = 7, y = 16, width = 17, height = 16 },
+                        { x = 39, y = 16, width = 17, height = 16 },
+                        { x = 71, y = 16, width = 17, height = 16 },
+                        { x = 103, y = 16, width = 17, height = 16 }
                     },
-                    frameTime = 0.1
-                },
-                hurt = {
-                    frames = { { x = 48, y = 0, width = 16, height = 16 } },
                     frameTime = 0.2
                 }
+            },
+            spriteInfo = {
+                sheet = "assets/Overworld/chicken.png"
             }
         }
     )
@@ -111,23 +152,20 @@ function CreatureRegistry:registerDefaultCreatures()
             { name = "Growl" }
         },
         {
-            sheet = "assets/Overworld/chicken.png", -- Placeholder path, you'll need the actual sprite
+            sheet = "assets/Overworld/chicken.png", -- Using chicken sprite as fallback
             animations = {
                 idle = {
-                    frames = { { x = 0, y = 0, width = 16, height = 16 } },
-                    frameTime = 0.2
-                },
-                attack = {
                     frames = {
-                        { x = 16, y = 0, width = 16, height = 16 },
-                        { x = 32, y = 0, width = 16, height = 16 }
+                        { x = 7, y = 16, width = 17, height = 16 },
+                        { x = 39, y = 16, width = 17, height = 16 },
+                        { x = 71, y = 16, width = 17, height = 16 },
+                        { x = 103, y = 16, width = 17, height = 16 }
                     },
-                    frameTime = 0.1
-                },
-                hurt = {
-                    frames = { { x = 48, y = 0, width = 16, height = 16 } },
                     frameTime = 0.2
                 }
+            },
+            spriteInfo = {
+                sheet = "assets/Overworld/chicken.png" -- Will fallback to chicken sprite
             }
         }
     )
@@ -141,23 +179,76 @@ function CreatureRegistry:registerDefaultCreatures()
             { name = "Tackle" }
         },
         {
-            sheet = "assets/Overworld/chicken.png", -- Placeholder path, you'll need the actual sprite
+            sheet = "assets/Overworld/chicken.png", -- Using chicken sprite as fallback
             animations = {
                 idle = {
-                    frames = { { x = 0, y = 0, width = 16, height = 16 } },
-                    frameTime = 0.2
-                },
-                attack = {
                     frames = {
-                        { x = 16, y = 0, width = 16, height = 16 },
-                        { x = 32, y = 0, width = 16, height = 16 }
+                        { x = 7, y = 16, width = 17, height = 16 },
+                        { x = 39, y = 16, width = 17, height = 16 },
+                        { x = 71, y = 16, width = 17, height = 16 },
+                        { x = 103, y = 16, width = 17, height = 16 }
                     },
-                    frameTime = 0.1
-                },
-                hurt = {
-                    frames = { { x = 48, y = 0, width = 16, height = 16 } },
                     frameTime = 0.2
                 }
+            },
+            spriteInfo = {
+                sheet = "assets/Overworld/chicken.png" -- Will fallback to chicken sprite
+            }
+        }
+    )
+
+    -- Add some additional creatures
+    self:registerCreature(
+        "rat",
+        "Rat",
+        { hp = 15, attack = 5, speed = 8 },
+        {
+            { name = "Tackle" },
+            { name = "Growl" }
+        },
+        {
+            sheet = "assets/Overworld/chicken.png", -- Using chicken sprite as fallback
+            animations = {
+                idle = {
+                    frames = {
+                        { x = 7, y = 16, width = 17, height = 16 },
+                        { x = 39, y = 16, width = 17, height = 16 },
+                        { x = 71, y = 16, width = 17, height = 16 },
+                        { x = 103, y = 16, width = 17, height = 16 }
+                    },
+                    frameTime = 0.2
+                }
+            },
+            spriteInfo = {
+                sheet = "assets/Overworld/chicken.png"
+            }
+        }
+    )
+
+    self:registerCreature(
+        "wolf",
+        "Wolf",
+        { hp = 30, attack = 8, speed = 7 },
+        {
+            { name = "Scratch" },
+            { name = "Growl" },
+            { name = "Tackle" }
+        },
+        {
+            sheet = "assets/Overworld/chicken.png", -- Using chicken sprite as fallback
+            animations = {
+                idle = {
+                    frames = {
+                        { x = 7, y = 16, width = 17, height = 16 },
+                        { x = 39, y = 16, width = 17, height = 16 },
+                        { x = 71, y = 16, width = 17, height = 16 },
+                        { x = 103, y = 16, width = 17, height = 16 }
+                    },
+                    frameTime = 0.2
+                }
+            },
+            spriteInfo = {
+                sheet = "assets/Overworld/chicken.png"
             }
         }
     )

@@ -78,6 +78,10 @@ function BattleSystem:startBattle(wildCreature)
     self.messageText = "A wild " .. self.enemyCreature.name .. " appeared!"
     self.messageTimer = 2  -- 2 seconds
 
+    -- Set creatures to idle animation
+    self.playerCreature:setAnimation("idle")
+    self.enemyCreature:setAnimation("idle")
+
     -- Pause the game world
     if self.game then
         self.game.battlePaused = true
@@ -100,6 +104,14 @@ function BattleSystem:update(dt)
             if self.state == "intro" then
                 self.state = "choosingAction"
             elseif self.state == "executingMove" then
+                -- Reset animations back to idle
+                if self.playerCreature then
+                    self.playerCreature:setAnimation("idle")
+                end
+                if self.enemyCreature then
+                    self.enemyCreature:setAnimation("idle")
+                end
+
                 -- After executing move, check for battle end
                 if self:checkBattleEnd() then
                     -- Battle ended
@@ -116,6 +128,11 @@ function BattleSystem:update(dt)
                     end
                 end
             elseif self.state == "catching" then
+                -- Reset animations back to idle
+                if self.playerCreature then
+                    self.playerCreature:setAnimation("idle")
+                end
+
                 -- After catching attempt, check if successful
                 if self.result == "catch" then
                     self.state = "result"
@@ -134,6 +151,15 @@ function BattleSystem:update(dt)
 
     -- Update animation
     self.animationTimer = self.animationTimer + dt
+
+    -- Update creature animations
+    if self.playerCreature then
+        self.playerCreature:update(dt)
+    end
+
+    if self.enemyCreature then
+        self.enemyCreature:update(dt)
+    end
 end
 
 -- Handle player input during battle
@@ -237,6 +263,9 @@ end
 function BattleSystem:executePlayerMove(move)
     self.state = "executingMove"
 
+    -- Set player creature to attack animation
+    self.playerCreature:setAnimation("attack")
+
     -- Calculate and apply damage
     local result = move:execute(self.playerCreature, self.enemyCreature)
 
@@ -244,55 +273,62 @@ function BattleSystem:executePlayerMove(move)
     self.messageText = self.playerCreature.name .. " used " .. move.name .. "!"
     if result.damage > 0 then
         self.messageText = self.messageText .. " Dealt " .. result.damage .. " damage!"
+
+        -- Set enemy creature to hurt animation if damaged
+        self.enemyCreature:setAnimation("hurt")
     end
 
     if result.fainted then
         self.messageText = self.messageText .. " " .. self.enemyCreature.name .. " fainted!"
-        self.result = "win"
     end
 
     -- Set message timer
     self.messageTimer = 2
+
+    -- Update battle stats
+    self.turnCount = self.turnCount + 1
 end
 
 -- Execute enemy's turn
 function BattleSystem:executeEnemyTurn()
+    -- Check if enemy can attack
+    if self.enemyCreature.currentHp <= 0 then
+        -- Enemy fainted, can't attack
+        self.turn = "player"
+        self.state = "choosingAction"
+        return
+    end
+
     self.state = "executingMove"
 
     -- Choose a random move for the enemy
-    if #self.enemyCreature.moves > 0 then
-        local moveIndex = math.random(1, #self.enemyCreature.moves)
-        local move = self.enemyCreature:getMove(moveIndex)
+    local moveIndex = math.random(1, #self.enemyCreature.moves)
+    local move = self.enemyCreature:getMove(moveIndex)
 
-        -- Calculate and apply damage
-        local result = move:execute(self.enemyCreature, self.playerCreature)
+    -- Set enemy creature to attack animation
+    self.enemyCreature:setAnimation("attack")
 
-        -- Display message
-        self.messageText = "Enemy " .. self.enemyCreature.name .. " used " .. move.name .. "!"
-        if result.damage > 0 then
-            self.messageText = self.messageText .. " Dealt " .. result.damage .. " damage!"
-        end
+    -- Calculate and apply damage
+    local result = move:execute(self.enemyCreature, self.playerCreature)
 
-        if result.fainted then
-            self.messageText = self.messageText .. " " .. self.playerCreature.name .. " fainted!"
+    -- Display message
+    self.messageText = self.enemyCreature.name .. " used " .. move.name .. "!"
+    if result.damage > 0 then
+        self.messageText = self.messageText .. " Dealt " .. result.damage .. " damage!"
 
-            -- Check if player has any other non-fainted creatures
-            local nextIndex = self.playerTeam:getNextNonFaintedCreature()
-            if nextIndex then
-                self.messageText = self.messageText .. " Switching to next creature..."
-                self.messageTimer = 2
-                self:switchCreature(nextIndex)
-            else
-                self.result = "lose"
-            end
-        end
-    else
-        -- No moves available
-        self.messageText = "Enemy " .. self.enemyCreature.name .. " has no moves!"
+        -- Set player creature to hurt animation if damaged
+        self.playerCreature:setAnimation("hurt")
+    end
+
+    if result.fainted then
+        self.messageText = self.messageText .. " " .. self.playerCreature.name .. " fainted!"
     end
 
     -- Set message timer
     self.messageTimer = 2
+
+    -- Update battle stats
+    self.turnCount = self.turnCount + 1
 end
 
 -- Attempt to catch the enemy creature
@@ -300,44 +336,37 @@ function BattleSystem:attemptCatch()
     self.state = "catching"
     self.catchAttempts = self.catchAttempts + 1
 
-    -- Calculate catch chance
-    -- Formula: (3 * MaxHP - 2 * CurrentHP) * CatchRate / (3 * MaxHP)
-    local maxHp = self.enemyCreature.stats.hp
-    local currentHp = self.enemyCreature.currentHp
-    local baseRate = 40  -- Base catch rate (can be adjusted per creature type)
-    local catchRate = (3 * maxHp - 2 * currentHp) * baseRate / (3 * maxHp)
+    -- Calculate catch chance based on creature's remaining HP percentage and catch attempts
+    local hpPercentage = self.enemyCreature.currentHp / self.enemyCreature.stats.hp
+    local baseChance = (1 - hpPercentage) * 100  -- 0% at full HP, 100% at 0 HP
 
-    -- Adjust rate based on creature level
-    catchRate = catchRate * (1 - self.enemyCreature.level / 100)
+    -- Increase chance slightly with each attempt
+    baseChance = baseChance + (self.catchAttempts * 5)
 
-    -- Adjust rate based on catch attempts
-    catchRate = catchRate * (1 + self.catchAttempts * 0.1)
-
-    -- Cap rate between 5% and 90%
-    catchRate = math.max(5, math.min(90, catchRate))
+    -- Cap chance between 10% and 90%
+    local catchChance = math.max(10, math.min(90, baseChance))
 
     -- Roll for catch
     local roll = math.random(1, 100)
-    local caught = roll <= catchRate
+    local caught = roll <= catchChance
 
-    -- Display message
-    self.messageText = "Attempting to catch " .. self.enemyCreature.name .. "..."
-
-    -- Set message timer
-    self.messageTimer = 1.5
-
-    -- Process result
     if caught then
+        -- Creature was caught!
         self.result = "catch"
-        self.messageText = self.enemyCreature.name .. " was caught!"
-        self.messageTimer = 2
+        self.messageText = "Caught " .. self.enemyCreature.name .. "!"
 
-        -- Add the creature to the player's team
+        -- Add to player's team or storage
         self.playerTeam:addCreature(self.enemyCreature)
     else
+        -- Failed to catch
         self.messageText = self.enemyCreature.name .. " broke free!"
-        self.messageTimer = 1.5
+
+        -- Have enemy creature react to the catch attempt (shake animation)
+        self.enemyCreature:setAnimation("hurt")
     end
+
+    -- Set message timer
+    self.messageTimer = 2
 end
 
 -- Attempt to run from battle
@@ -498,7 +527,8 @@ end
 function BattleSystem:drawCreature(creature, x, y, scale, position)
     -- Draw creature sprite or placeholder
     love.graphics.setColor(1, 1, 1, 1)
-    creature:draw(x, y, scale)
+    local isPlayerCreature = (position == "player")
+    creature:draw(x, y, scale, isPlayerCreature)
 
     -- Draw HP bar
     local hpBarWidth = 100

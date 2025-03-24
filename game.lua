@@ -2,8 +2,7 @@
 local Camera = require("camera")
 local World = require("world.world")
 local Player = require("player")
-local Chicken = require("npc.chicken")  -- Import the chicken NPC
-local CatchableNPC = require("npc.CatchableNPC")  -- Import the catchable NPC class
+local OverworldCreature = require("npc.OverworldCreature")  -- Import the new OverworldCreature class
 local Inputs = require("Inputs")  -- Import the new inputs module
 local ParticleSystem = require("ParticleSystem")
 local UI = require("UI.UI")  -- Import the new UI module
@@ -143,12 +142,10 @@ end
 
 -- Function to spawn initial NPCs in the world
 function Game:spawnInitialNPCs()
-    -- Spawn a few regular chickens
-    -- We'll place them near the surface on solid ground
+    -- Spawn creatures in the world
     local playerX = self.player.x
 
-    -- Spawn some catchable creatures at different locations
-    local creatureTypes = self.creatureRegistry:getCreatureTypes()
+    -- Define spawn points with different creature types
     local spawnPoints = {
         {x = playerX - 200, offset = 0, type = "chicken"},
         {x = playerX + 300, offset = 0, type = "fox"},
@@ -158,40 +155,34 @@ function Game:spawnInitialNPCs()
     for _, point in ipairs(spawnPoints) do
         local groundY = self:findGroundLevel(point.x)
         if groundY then
-            -- Determine if this will be a catchable NPC or regular chicken
-            if point.type ~= "chicken" then
-                -- Spawn a catchable creature
-                local catchableNPC = CatchableNPC:new(
-                    self.world,
-                    point.x,
-                    groundY - 8,
-                    point.type,  -- Use the specified creature type
-                    math.random(1, 3)  -- Random level 1-3
-                )
-                table.insert(self.npcs, catchableNPC)
-            else
-                -- Spawn a regular chicken
-                local chicken = Chicken:new(self.world, point.x, groundY - 8)
-                table.insert(self.npcs, chicken)
-            end
+            -- Create an OverworldCreature with the specified type
+            local creature = OverworldCreature:new(
+                self.world,
+                point.x,
+                groundY - 8,
+                point.type,
+                math.random(1, 3)  -- Random level 1-3
+            )
+            table.insert(self.npcs, creature)
         end
     end
 
-    -- Spawn additional catchable creatures farther away
+    -- Spawn additional creatures farther away
+    local creatureTypes = self.creatureRegistry:getCreatureTypes()
     for i = 1, 5 do
         local x = playerX + (math.random() * 2 - 1) * 800  -- Random position +/- 800px from player
         local creatureType = creatureTypes[math.random(1, #creatureTypes)]
         local groundY = self:findGroundLevel(x)
 
         if groundY then
-            local catchableNPC = CatchableNPC:new(
+            local creature = OverworldCreature:new(
                 self.world,
                 x,
                 groundY - 8,
                 creatureType,
                 math.random(1, 5)  -- Random level 1-5
             )
-            table.insert(self.npcs, catchableNPC)
+            table.insert(self.npcs, creature)
         end
     end
 end
@@ -266,7 +257,7 @@ function Game:checkCatchableNPCCollisions()
     end
 
     for i, npc in ipairs(self.npcs) do
-        -- Only check catchable NPCs that are visible and active
+        -- Only check creatures that are visible, active, and catchable
         if npc.catchable and npc.active and npc:isVisible(self.camera) then
             -- Simple collision check (can be improved with proper hitboxes)
             local dx = math.abs(npc.x - self.player.x)
@@ -274,7 +265,7 @@ function Game:checkCatchableNPCCollisions()
             local collisionDistance = (npc.width + self.player.width) / 2
 
             if dx < collisionDistance and dy < collisionDistance then
-                -- Player collided with a catchable NPC
+                -- Player collided with a creature
                 self:startBattleWithNPC(npc, i)
                 break  -- Only handle one collision at a time
             end
