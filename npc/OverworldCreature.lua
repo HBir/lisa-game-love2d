@@ -34,11 +34,13 @@ function OverworldCreature:new(world, x, y, creatureTypeId, level)
     -- Creature properties
     self.creatureTypeId = creatureTypeId or "chicken"  -- Default to chicken if no type provided
     self.level = level or math.random(1, 5)
-    self.catchable = true  -- All creatures are catchable
+    self.catchable = true  -- All creatures are catchable by default
 
-    -- Load default sprite sheet (fallback)
-    -- self.defaultSpriteSheet = "assets/Overworld/chicken.png"
-    -- self.spriteSheet = love.graphics.newImage(self.defaultSpriteSheet)
+    -- Player ownership flags
+    self.isPlayerOwned = false -- Flag to indicate if this creature belongs to the player
+    self.followPlayer = false  -- Flag to indicate if this creature should follow the player
+    self.followDistance = 40   -- Distance to maintain behind player
+    self.followIndex = 1       -- Position in follow chain (for multiple followers)
 
     -- Graphics offsets
     self.offsetX = 0
@@ -128,8 +130,18 @@ end
 
 -- Update the creature
 function OverworldCreature:update(dt)
-    -- Normal NPC update
-    NPC.update(self, dt)
+    -- If this creature is owned by the player, it shouldn't be catchable
+    if self.isPlayerOwned then
+        self.catchable = false
+    end
+
+    -- Check if we should follow the player
+    if self.followPlayer and self.world.player then
+        self:updateFollowBehavior(dt)
+    else
+        -- Normal NPC update for wild creatures
+        NPC.update(self, dt)
+    end
 
     -- Update timers
     if self.collisionCooldown > 0 then
@@ -137,8 +149,91 @@ function OverworldCreature:update(dt)
     end
 end
 
+-- New method for following the player
+function OverworldCreature:updateFollowBehavior(dt)
+    local player = self.world.player
+    if not player then return end
+
+    -- Calculate target position behind player based on follow index
+    local targetX = player.x
+    local targetY = player.y
+
+    -- Position is based on which direction player is facing
+    local offsetX = 0
+    local offsetY = 0
+
+    -- Calculate base offset distance based on follow index
+    local distance = self.followDistance * self.followIndex
+
+    -- Adjust target position based on player direction
+    if player.direction == "left" then
+        offsetX = distance
+    elseif player.direction == "right" then
+        offsetX = -distance
+    end
+
+    targetX = player.x + offsetX
+    targetY = player.y + offsetY
+
+    -- Calculate distance to target
+    local dx = targetX - self.x
+    local dy = targetY - self.y
+    local distanceToTarget = math.sqrt(dx*dx + dy*dy)
+
+    -- Only move if far enough away
+    if distanceToTarget > self.followDistance * 0.7 then
+        -- Set animation state to walking
+        self.animation.state = "walk"
+
+        -- Normalize direction vector
+        local length = math.sqrt(dx*dx + dy*dy)
+        if length > 0 then
+            dx = dx / length
+            dy = dy / length
+        end
+
+        -- Set velocity based on distance (faster when further away)
+        local speedFactor = math.min(2.0, distanceToTarget / self.followDistance)
+        self.vx = dx * self.speed * speedFactor
+        self.vy = dy * 0.5 * self.speed -- Less vertical movement
+
+        -- Set creature direction
+        if dx > 0 then
+            self.direction = "right"
+        elseif dx < 0 then
+            self.direction = "left"
+        end
+    else
+        -- Close enough, stop moving
+        self.vx = 0
+        self.vy = 0
+        self.animation.state = "idle"
+    end
+
+    -- Apply gravity and handle collisions
+    self.vy = self.vy + self.gravity * dt
+
+    -- Calculate new position
+    local newX = self.x + self.vx * dt
+    local newY = self.y + self.vy * dt
+
+    -- Reset ground state
+    self.onGround = false
+
+    -- Handle collisions and update position
+    self:handleCollisions(newX, newY)
+
+    -- Update animation
+    self:updateAnimation(dt)
+end
+
 -- Handle collision with player
 function OverworldCreature:onPlayerCollision(player, dx, dy)
+    -- If this is a player's creature, don't trigger battle
+    if self.isPlayerOwned then
+        return false
+    end
+
     -- Only respond to collision if not in cooldown
     if self.collisionCooldown <= 0 then
         -- Set collision cooldown to prevent multiple battle triggers
@@ -226,6 +321,7 @@ function OverworldCreature:createCreatureInstance()
     end
 
     -- Create a creature instance with the same type and level as this NPC
+    print("Creating creature instance: " .. self.creatureTypeId .. " level " .. self.level)
     return self.world.creatureRegistry:createCreature(self.creatureTypeId, self.level)
 end
 

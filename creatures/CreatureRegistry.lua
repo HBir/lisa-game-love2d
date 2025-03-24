@@ -29,7 +29,8 @@ function CreatureRegistry:registerCreature(id, name, baseStats, defaultMoves, sp
 end
 
 -- Create a new instance of a creature by id
-function CreatureRegistry:createCreature(id, level)
+function CreatureRegistry:createCreature(id, level, world, x, y, isPlayerOwned)
+    print("Creating creature: " .. id )
     local creatureType = self.creatureTypes[id]
     if not creatureType then
         return nil, "Creature type not found: " .. id
@@ -108,6 +109,25 @@ function CreatureRegistry:createCreature(id, level)
 
     -- Set creature ID for reference
     creature.id = id
+
+    -- Create overworld representation if world is provided
+    if world and x and y then
+        -- Create an overworld creature representation
+        local OverworldCreature = require("npc.OverworldCreature")
+
+        local overworldEntity = OverworldCreature:new(world, x, y, id, level)
+
+        -- Link the battle creature and overworld entity
+        creature.overworldEntity = overworldEntity
+        overworldEntity.battleCreature = creature
+
+        -- Set the player-owned flag if provided
+        if isPlayerOwned then
+            overworldEntity.isPlayerOwned = true
+            overworldEntity.followPlayer = true
+            overworldEntity.behavior = "follow" -- Override default wander behavior
+        end
+    end
 
     return creature
 end

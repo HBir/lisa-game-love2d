@@ -104,10 +104,10 @@ function Game:load()
     self.world.player = self.player
 
     -- Create a creature team for the player
-    self.player.creatureTeam = PlayerCreatureTeam:new()
+    self.player.creatureTeam = PlayerCreatureTeam:new(self.world, self.player)
 
     -- Give the player a starter creature (for testing)
-    local starterCreature = self.creatureRegistry:createCreature("chicken", 5)
+    local starterCreature = self.creatureRegistry:createCreature(1, 5, self.world, self.player.x, self.player.y, true)
     self.player.creatureTeam:addCreature(starterCreature)
 
     -- Initialize battle system
@@ -146,44 +146,47 @@ function Game:spawnInitialNPCs()
     local playerX = self.player.x
 
     -- Define spawn points with different creature types
-    local spawnPoints = {
-        {x = playerX - 200, offset = 0, type = "chicken"},
-        {x = playerX + 300, offset = 0, type = "chicken"},
-        {x = playerX - 400, offset = 0, type = "lilly"}
-    }
+    -- local spawnPoints = {
+    --     {x = playerX - 200, offset = 0, type = "chicken"},
+    --     {x = playerX + 300, offset = 0, type = "chicken"},
+    --     {x = playerX - 400, offset = 0, type = "lilly"}
+    -- }
 
-    for _, point in ipairs(spawnPoints) do
-        local groundY = self:findGroundLevel(point.x)
-        if groundY then
-            -- Create an OverworldCreature with the specified type
-            local creature = OverworldCreature:new(
-                self.world,
-                point.x,
-                groundY - 8,
-                point.type,
-                math.random(1, 3)  -- Random level 1-3
-            )
-            table.insert(self.npcs, creature)
-        end
-    end
+    -- for _, point in ipairs(spawnPoints) do
+        -- self.creatureRegistry.createCreature(point.type, 5, self.world, point.x, point.y, false)
 
-    -- Spawn additional creatures farther away
+        -- local groundY = self:findGroundLevel(point.x)
+        -- if groundY then
+        --     -- Create an OverworldCreature with the specified type
+        --     local creature = OverworldCreature:new(
+        --         self.world,
+        --         point.x,
+        --         groundY - 8,
+        --         point.type,
+        --         math.random(1, 3)  -- Random level 1-3
+        --     )
+        --     table.insert(self.npcs, creature)
+        -- end
+    -- end
+
+    -- -- Spawn additional creatures farther away
     local creatureTypes = self.creatureRegistry:getCreatureTypes()
-    for i = 1, 5 do
+    for i = 1, 10 do
         local x = playerX + (math.random() * 2 - 1) * 800  -- Random position +/- 800px from player
-        local creatureType = creatureTypes[math.random(1, #creatureTypes)]
+        local creatureType = math.random(1, #creatureTypes)
         local groundY = self:findGroundLevel(x)
+        local creature = self.creatureRegistry.createCreature(creatureType, 5, self.world, x, groundY -8, false)
+        table.insert(self.npcs, creature)
 
-        if groundY then
-            local creature = OverworldCreature:new(
-                self.world,
-                x,
-                groundY - 8,
-                creatureType,
-                math.random(1, 5)  -- Random level 1-5
-            )
-            table.insert(self.npcs, creature)
-        end
+        -- if groundY then
+        --     local creature = OverworldCreature:new(
+        --         self.world,
+        --         x,
+        --         groundY - 8,
+        --         creatureType,
+        --         math.random(1, 5)  -- Random level 1-5
+        --     )
+        -- end
     end
 end
 
@@ -275,11 +278,24 @@ end
 
 -- Start a battle with a catchable NPC
 function Game:startBattleWithNPC(npc, npcIndex)
-    -- Create a creature instance from the NPC
-    local wildCreature = npc:createCreatureInstance()
+    -- Get the battle creature instance
+    local wildCreature
+
+    -- If the NPC already has a linked battle creature, use that
+    if npc.battleCreature then
+        wildCreature = npc.battleCreature
+    else
+        -- Otherwise create a new creature instance from the NPC
+        wildCreature = npc:createCreatureInstance()
+        -- Link the newly created creature back to the NPC
+        if wildCreature then
+            wildCreature.overworldEntity = npc
+            npc.battleCreature = wildCreature
+        end
+    end
 
     if not wildCreature then
-        print("Failed to create creature from NPC")
+        print("Failed to create or retrieve creature from NPC")
         return
     end
 
