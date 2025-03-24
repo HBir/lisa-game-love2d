@@ -127,6 +127,11 @@ function UI:drawUI()
         love.graphics.setColor(1, 1, 1, 1)
     end
 
+    -- Draw creature team indicator in top right if player has creatures
+    if self.game.player.creatureTeam and #self.game.player.creatureTeam.creatures > 0 then
+        self:drawCreatureTeamIndicator()
+    end
+
     -- Draw selection hotbar at the bottom of the screen
     if self.game.player.furnitureMode then
         self:drawFurnitureHotbar()
@@ -414,6 +419,60 @@ function UI:drawFurnitureHotbar()
     -- Reset color and line width
     love.graphics.setColor(1, 1, 1, 1)
     love.graphics.setLineWidth(1)
+end
+
+-- Draw a small indicator showing the player's active creature
+function UI:drawCreatureTeamIndicator()
+    local activeCreature = self.game.player.creatureTeam:getActiveCreature()
+    if not activeCreature then return end
+
+    -- Position in top right
+    local indicatorX = self.game.width - 120
+    local indicatorY = 10
+    local indicatorWidth = 110
+    local indicatorHeight = 50
+
+    -- Draw background
+    love.graphics.setColor(0, 0, 0, 0.7)
+    love.graphics.rectangle("fill", indicatorX, indicatorY, indicatorWidth, indicatorHeight, 5, 5)
+
+    -- Draw creature name and level
+    love.graphics.setColor(1, 1, 1, 1)
+    love.graphics.print(activeCreature.name, indicatorX + 5, indicatorY + 5)
+    love.graphics.print("Lv. " .. activeCreature.level, indicatorX + 70, indicatorY + 5)
+
+    -- Draw HP bar
+    local hpBarWidth = 100
+    local hpBarHeight = 8
+    local filledWidth = (activeCreature.currentHp / activeCreature.stats.hp) * hpBarWidth
+
+    -- Background
+    love.graphics.setColor(0.2, 0.2, 0.2, 0.8)
+    love.graphics.rectangle("fill", indicatorX + 5, indicatorY + 25, hpBarWidth, hpBarHeight)
+
+    -- Filled portion
+    local hpColor = {0.2, 0.8, 0.2}  -- Green
+    if activeCreature.currentHp <= activeCreature.stats.hp * 0.5 then
+        hpColor = {0.8, 0.8, 0.2}  -- Yellow
+    end
+    if activeCreature.currentHp <= activeCreature.stats.hp * 0.25 then
+        hpColor = {0.8, 0.2, 0.2}  -- Red
+    end
+
+    love.graphics.setColor(hpColor)
+    love.graphics.rectangle("fill", indicatorX + 5, indicatorY + 25, filledWidth, hpBarHeight)
+
+    -- Draw HP text
+    love.graphics.setColor(1, 1, 1, 1)
+    love.graphics.print(activeCreature.currentHp .. "/" .. activeCreature.stats.hp,
+                       indicatorX + 5, indicatorY + 33)
+
+    -- Draw hint for team screen
+    love.graphics.setColor(0.7, 0.7, 0.7, 0.8)
+    love.graphics.print("T: Team", indicatorX + 70, indicatorY + 33)
+
+    -- Reset color
+    love.graphics.setColor(1, 1, 1, 1)
 end
 
 return UI

@@ -353,6 +353,9 @@ function Inputs:keypressed(key)
         else
             self.game.world.renderer:hideFurniturePreview()
         end
+    elseif key == "t" then
+        -- Toggle creature team overview screen
+        self.game.showTeamOverview = not self.game.showTeamOverview
     elseif key == "1" or key == "2" or key == "3" or key == "4" or
            key == "5" or key == "6" or key == "7" or key == "8" or key == "9" then
         local index = tonumber(key)

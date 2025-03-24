@@ -3,9 +3,14 @@ local Camera = require("camera")
 local World = require("world.world")
 local Player = require("player")
 local Chicken = require("npc.chicken")  -- Import the chicken NPC
+local CatchableNPC = require("npc.CatchableNPC")  -- Import the catchable NPC class
 local Inputs = require("Inputs")  -- Import the new inputs module
 local ParticleSystem = require("ParticleSystem")
 local UI = require("UI.UI")  -- Import the new UI module
+local BattleUI = require("UI.BattleUI")  -- Import the battle UI module
+local CreatureRegistry = require("creatures.CreatureRegistry")  -- Import the creature registry
+local PlayerCreatureTeam = require("creatures.PlayerCreatureTeam")  -- Import the player creature team
+local BattleSystem = require("creatures.BattleSystem")  -- Import the battle system
 local Game = {}
 
 Game.__index = Game
@@ -17,8 +22,8 @@ function Game:new()
     self.title = "Lisa's Game"
     local _, _, flags = love.window.getMode()
     local window_width, window_height = love.window.getDesktopDimensions(flags.display)
-    self.width = window_width
-    self.height = window_height-100
+    self.width = 800 -- window_width
+    self.height = 600 -- window_height-100
 
     -- NPC management
     self.npcs = {}  -- Table to store all NPCs
@@ -26,6 +31,12 @@ function Game:new()
     -- Debug options
     self.showSpriteDebug = false
     self.debugPage = 0  -- Track which debug page is displayed (0 = off, 1 = page 1, 2 = page 2)
+
+    -- Creature system
+    self.creatureRegistry = nil  -- Will be initialized in load()
+    self.battleSystem = nil      -- Will be initialized in load()
+    self.battlePaused = false    -- Flag to indicate when a battle is in progress
+    self.showTeamOverview = false -- Flag to show creature team overview
 
     return self
 end
@@ -55,8 +66,19 @@ function Game:load()
     -- Load background image
     self.backgroundImage = love.graphics.newImage("assets/Tiles/Background_2.png")
 
+    -- Initialize the creature registry
+    self.creatureRegistry = CreatureRegistry:new()
+
     -- Initialize the world
     self.world = World:new(256, 256, 14) -- width, height, tile size
+
+    -- Set creature registry in world for catchable NPCs to access
+    self.world.creatureRegistry = self.creatureRegistry
+
+    -- Set game reference in world
+    self.world.game = self
+
+    -- Generate the world
     self.world:generate()
 
     -- Find a good starting position near the surface
@@ -82,6 +104,16 @@ function Game:load()
     -- Attach player to world so NPCs can access it
     self.world.player = self.player
 
+    -- Create a creature team for the player
+    self.player.creatureTeam = PlayerCreatureTeam:new()
+
+    -- Give the player a starter creature (for testing)
+    local starterCreature = self.creatureRegistry:createCreature("chicken", 5)
+    self.player.creatureTeam:addCreature(starterCreature)
+
+    -- Initialize battle system
+    self.battleSystem = BattleSystem:new(self.player.creatureTeam, self)
+
     -- Initialize particle systems after player is created
     self:initParticleSystems()
     print("After initParticleSystems, self.particles:", self.particles)
@@ -93,7 +125,7 @@ function Game:load()
     self.camera = Camera:new(self.width, self.height, 1) -- Use scale factor of 1 instead of world.tileSize
     self.camera:follow(self.player)
 
-    -- Create some chickens in the world
+    -- Create some creatures and chickens in the world
     self:spawnInitialNPCs()
 
     -- Initialize inputs system
@@ -102,36 +134,64 @@ function Game:load()
     -- Initialize UI system
     self.ui = UI:new(self)
 
+    -- Initialize battle UI
+    self.battleUI = BattleUI:new(self)
+
     -- Game state
     self.paused = false
 end
 
 -- Function to spawn initial NPCs in the world
 function Game:spawnInitialNPCs()
-    -- Spawn a few chickens in different areas of the world
+    -- Spawn a few regular chickens
     -- We'll place them near the surface on solid ground
-
-    -- First, spawn a chicken near the player
     local playerX = self.player.x
-    local groundY = self:findGroundLevel(playerX + 100) -- 100 pixels to the right of player
 
-    if groundY then
-        local chicken = Chicken:new(self.world, playerX + 100, groundY - 8)
-        table.insert(self.npcs, chicken)
-    end
-
-    -- Spawn a few more chickens at different locations
+    -- Spawn some catchable creatures at different locations
+    local creatureTypes = self.creatureRegistry:getCreatureTypes()
     local spawnPoints = {
-        {x = playerX - 200, offset = 0},
-        {x = playerX + 300, offset = 0},
-        {x = playerX - 400, offset = 0}
+        {x = playerX - 200, offset = 0, type = "chicken"},
+        {x = playerX + 300, offset = 0, type = "fox"},
+        {x = playerX - 400, offset = 0, type = "bunny"}
     }
 
     for _, point in ipairs(spawnPoints) do
         local groundY = self:findGroundLevel(point.x)
         if groundY then
-            local chicken = Chicken:new(self.world, point.x, groundY - 8)
-            table.insert(self.npcs, chicken)
+            -- Determine if this will be a catchable NPC or regular chicken
+            if point.type ~= "chicken" then
+                -- Spawn a catchable creature
+                local catchableNPC = CatchableNPC:new(
+                    self.world,
+                    point.x,
+                    groundY - 8,
+                    point.type,  -- Use the specified creature type
+                    math.random(1, 3)  -- Random level 1-3
+                )
+                table.insert(self.npcs, catchableNPC)
+            else
+                -- Spawn a regular chicken
+                local chicken = Chicken:new(self.world, point.x, groundY - 8)
+                table.insert(self.npcs, chicken)
+            end
+        end
+    end
+
+    -- Spawn additional catchable creatures farther away
+    for i = 1, 5 do
+        local x = playerX + (math.random() * 2 - 1) * 800  -- Random position +/- 800px from player
+        local creatureType = creatureTypes[math.random(1, #creatureTypes)]
+        local groundY = self:findGroundLevel(x)
+
+        if groundY then
+            local catchableNPC = CatchableNPC:new(
+                self.world,
+                x,
+                groundY - 8,
+                creatureType,
+                math.random(1, 5)  -- Random level 1-5
+            )
+            table.insert(self.npcs, catchableNPC)
         end
     end
 end
@@ -154,6 +214,12 @@ function Game:update(dt)
         return
     end
 
+    -- If in battle, only update the battle system
+    if self.battlePaused then
+        self.battleSystem:update(dt)
+        return
+    end
+
     -- Track player air time before updating
     local playerWasInAir = not self.player.onGround
     local playerVelocityY = self.player.vy
@@ -169,6 +235,9 @@ function Game:update(dt)
 
     -- Update all NPCs
     self:updateNPCs(dt)
+
+    -- Check for collisions with catchable NPCs
+    self:checkCatchableNPCCollisions()
 
     -- Update dust particles
     self.particles:UpdateAllParticles(dt)
@@ -190,6 +259,98 @@ function Game:updateNPCs(dt)
     end
 end
 
+-- Check for collisions with catchable NPCs
+function Game:checkCatchableNPCCollisions()
+    if self.battlePaused then
+        return
+    end
+
+    for i, npc in ipairs(self.npcs) do
+        -- Only check catchable NPCs that are visible and active
+        if npc.catchable and npc.active and npc:isVisible(self.camera) then
+            -- Simple collision check (can be improved with proper hitboxes)
+            local dx = math.abs(npc.x - self.player.x)
+            local dy = math.abs(npc.y - self.player.y)
+            local collisionDistance = (npc.width + self.player.width) / 2
+
+            if dx < collisionDistance and dy < collisionDistance then
+                -- Player collided with a catchable NPC
+                self:startBattleWithNPC(npc, i)
+                break  -- Only handle one collision at a time
+            end
+        end
+    end
+end
+
+-- Start a battle with a catchable NPC
+function Game:startBattleWithNPC(npc, npcIndex)
+    -- Create a creature instance from the NPC
+    local wildCreature = npc:createCreatureInstance()
+
+    if not wildCreature then
+        print("Failed to create creature from NPC")
+        return
+    end
+
+    -- Start the battle
+    local success, errorMsg = self.battleSystem:startBattle(wildCreature)
+
+    if success then
+        -- Temporarily remove the NPC from the world during battle
+        npc.active = false
+
+        -- Store the NPC index for later removal if caught
+        self.battleSystem.targetNPCIndex = npcIndex
+    else
+        print("Battle failed to start: " .. (errorMsg or "Unknown error"))
+    end
+end
+
+-- Called when a battle is won
+function Game:onBattleWon(enemyCreature, expGain, leveledUp)
+    -- Show notification
+    self.player:showNotification("Won battle! +" .. expGain .. " EXP", {0, 1, 0, 1})
+
+    if leveledUp then
+        self.player:showNotification("Level Up!", {1, 1, 0, 1})
+    end
+
+    -- Reactivate the NPC (it escaped)
+    if self.battleSystem.targetNPCIndex and self.npcs[self.battleSystem.targetNPCIndex] then
+        self.npcs[self.battleSystem.targetNPCIndex].active = true
+    end
+end
+
+-- Called when a creature is caught
+function Game:onCreatureCaught(creature)
+    -- Show notification
+    self.player:showNotification(creature.name .. " caught!", {0, 1, 1, 1})
+
+    -- Remove the NPC from the world permanently
+    if self.battleSystem.targetNPCIndex then
+        table.remove(self.npcs, self.battleSystem.targetNPCIndex)
+        self.battleSystem.targetNPCIndex = nil
+    end
+end
+
+-- Called when a battle is lost
+function Game:onBattleLost()
+    -- Show notification
+    self.player:showNotification("Lost battle!", {1, 0, 0, 1})
+
+    -- Heal all creatures to 1 HP to prevent softlock
+    for _, creature in ipairs(self.player.creatureTeam.creatures) do
+        if creature.currentHp <= 0 then
+            creature.currentHp = 1
+        end
+    end
+
+    -- Reactivate the NPC
+    if self.battleSystem.targetNPCIndex and self.npcs[self.battleSystem.targetNPCIndex] then
+        self.npcs[self.battleSystem.targetNPCIndex].active = true
+    end
+end
+
 function Game:draw()
     -- Clear screen with default color (will be covered by background)
     love.graphics.clear(0, 0, 0)
@@ -199,6 +360,18 @@ function Game:draw()
     local bgScaleX = self.width / self.backgroundImage:getWidth()
     local bgScaleY = self.height / self.backgroundImage:getHeight()
     love.graphics.draw(self.backgroundImage, 0, 0, 0, bgScaleX, bgScaleY)
+
+    -- If in battle, only draw the battle UI
+    if self.battlePaused then
+        self.battleUI:draw()
+        return
+    end
+
+    -- If showing team overview, draw that and return
+    if self.showTeamOverview then
+        self.battleUI:drawTeamOverview()
+        return
+    end
 
     -- Begin camera transformation
     self.camera:set()
@@ -261,32 +434,69 @@ end
 -- Function to draw all NPCs
 function Game:drawNPCs()
     for _, npc in ipairs(self.npcs) do
-        -- Only draw NPCs that are visible on screen (optimization)
-        if npc:isVisible(self.camera) then
+        -- Only draw NPCs that are visible on screen and active (optimization)
+        if npc:isVisible(self.camera) and npc.active then
             npc:draw()
         end
     end
 end
 
--- Forward input events to the inputs module
+-- Forward input events to the inputs module or battle system
 function Game:keypressed(key)
+    -- If in battle, send inputs to battle system
+    if self.battlePaused then
+        if not self.battleSystem:handleInput(key) then
+            -- If battle system didn't handle the input, check for ESC to exit battle
+            if key == "escape" then
+                -- End the battle (only if not in a critical state)
+                if self.battleSystem.state == "choosingAction" or self.battleSystem.state == "result" then
+                    self.battleSystem:endBattle()
+                end
+            end
+        end
+        return
+    end
+
+    -- If showing team overview, handle those inputs
+    if self.showTeamOverview then
+        if key == "escape" then
+            self.showTeamOverview = false
+        end
+        return
+    end
+
+    -- Toggle team overview with T key
+    if key == "t" then
+        self.showTeamOverview = true
+        return
+    end
+
+    -- Forward to inputs module for normal gameplay
     self.inputs:keypressed(key)
 end
 
 function Game:keyreleased(key)
-    self.inputs:keyreleased(key)
+    if not self.battlePaused and not self.showTeamOverview then
+        self.inputs:keyreleased(key)
+    end
 end
 
 function Game:mousepressed(x, y, button)
-    self.inputs:mousepressed(x, y, button)
+    if not self.battlePaused and not self.showTeamOverview then
+        self.inputs:mousepressed(x, y, button)
+    end
 end
 
 function Game:mousereleased(x, y, button)
-    self.inputs:mousereleased(x, y, button)
+    if not self.battlePaused and not self.showTeamOverview then
+        self.inputs:mousereleased(x, y, button)
+    end
 end
 
 function Game:wheelmoved(x, y)
-    self.inputs:wheelmoved(x, y)
+    if not self.battlePaused and not self.showTeamOverview then
+        self.inputs:wheelmoved(x, y)
+    end
 end
 
 -- Function to emit particles when a block is broken
