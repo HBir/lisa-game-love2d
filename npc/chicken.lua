@@ -149,24 +149,24 @@ function Chicken:update(dt)
     end
 
     -- Gradually recover from being pushed (slow down)
-    if self.isPushed then
-        -- Apply friction to slow down pushed chicken, but slower when airborne
-        local friction = self.onGround and self.recoveryRate or 0.98
-        self.vx = self.vx * friction
+    -- if self.isPushed then
+    --     -- Apply friction to slow down pushed chicken, but slower when airborne
+    --     local friction = self.onGround and self.recoveryRate or 0.98
+    --     self.vx = self.vx * friction
 
-        -- If speed is very low and on ground, stop being pushed
-        if math.abs(self.vx) < 5 and self.onGround and not self.isPushAirborne then
-            self.isPushed = false
-            -- Return to normal behavior
-            if self.vx > 0 then
-                self.direction = "right"
-                self.vx = self.speed
-            elseif self.vx < 0 then
-                self.direction = "left"
-                self.vx = -self.speed
-            end
-        end
-    end
+    --     -- If speed is very low and on ground, stop being pushed
+    --     if math.abs(self.vx) < 5 and self.onGround and not self.isPushAirborne then
+    --         self.isPushed = false
+    --         -- Return to normal behavior
+    --         if self.vx > 0 then
+    --             self.direction = "right"
+    --             self.vx = self.speed
+    --         elseif self.vx < 0 then
+    --             self.direction = "left"
+    --             self.vx = -self.speed
+    --         end
+    --     end
+    -- end
 end
 
 -- Check collision with player and get pushed

@@ -171,6 +171,9 @@ function Creature:startAttackAnimation(isPlayerCreature)
     self.attackTimer = 0
 
     -- Set direction based on whether this is the player's creature or enemy
+    -- Since sprites face WEST (left) by default, we need to flip this logic:
+    -- - Player creatures face RIGHT, so they attack to the right
+    -- - Enemy creatures face LEFT, so they attack to the left
     if isPlayerCreature then
         self.attackDirection = {x = 1, y = -0.5} -- Player attacks upward and to the right
     else
@@ -211,10 +214,13 @@ function Creature:draw(x, y, scale, isPlayerCreature)
 
     love.graphics.setColor(unpack(color))
 
-    -- Determine if we need to mirror the sprite (enemies are mirrored)
+    -- Determine if we need to mirror the sprite
+    -- Since sprites face WEST (left) by default, we need to flip this logic:
+    -- - Player creatures should face RIGHT (flip the sprite)
+    -- - Enemy creatures should face LEFT (no flip needed)
     local scaleX = scale
-    if not isPlayerCreature then
-        scaleX = -scale -- Flip horizontally for enemies
+    if isPlayerCreature then
+        scaleX = -scale -- Flip horizontally for player creatures
     end
 
     if self.spriteSheet then

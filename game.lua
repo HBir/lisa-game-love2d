@@ -21,8 +21,8 @@ function Game:new()
     self.title = "Lisa's Game"
     local _, _, flags = love.window.getMode()
     local window_width, window_height = love.window.getDesktopDimensions(flags.display)
-    self.width = 800 -- window_width
-    self.height = 600 -- window_height-100
+    self.width = window_width
+    self.height = window_height-100
 
     -- NPC management
     self.npcs = {}  -- Table to store all NPCs

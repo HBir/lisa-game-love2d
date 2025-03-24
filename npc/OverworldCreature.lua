@@ -4,33 +4,41 @@ local NPC = require("npc.npc")
 local OverworldCreature = setmetatable({}, NPC)
 OverworldCreature.__index = OverworldCreature
 
-function createOverWorldQuads(framesSpecArray)
-  if not framesSpecArray then
+-- Helper function to create animation frames from a frames specification
+function createOverWorldQuads(framesSpecArray, spriteSheet)
+  if not framesSpecArray or not framesSpecArray.frames then
     return nil
   end
 
-  local spriteSheet = love.graphics.newImage(framesSpecArray.sheet)
-
+  -- Create a table to hold frame data
   local frames = {}
-  for i, frameSpec in ipairs(framesSpecArray) do
-    frames[i] = love.graphics.newQuad(frameSpec.x, frameSpec.y, frameSpec.width, frameSpec.height, spriteSheet:getDimensions())
+  for i, frameSpec in ipairs(framesSpecArray.frames) do
+    frames[i] = {
+      quad = love.graphics.newQuad(
+        frameSpec.x, frameSpec.y,
+        frameSpec.width, frameSpec.height,
+        spriteSheet:getDimensions()
+      ),
+      offsetX = frameSpec.offsetX or 0,
+      offsetY = frameSpec.offsetY or 0
+    }
   end
   return frames
 end
 
 
-function OverworldCreature:new(world, x, y, creatureType, level)
+function OverworldCreature:new(world, x, y, creatureTypeId, level)
     -- Create a new instance using NPC's constructor
     local self = NPC.new(self, world, x, y, 16, 14)  -- Width 16, height 14
 
     -- Creature properties
-    self.creatureType = creatureType or "chicken"  -- Default to chicken if no type provided
+    self.creatureTypeId = creatureTypeId or "chicken"  -- Default to chicken if no type provided
     self.level = level or math.random(1, 5)
     self.catchable = true  -- All creatures are catchable
 
-    -- Load sprite sheet (fallback to chicken by default)
-    self.defaultSpriteSheet = "assets/Overworld/chicken.png"
-    self.spriteSheet = love.graphics.newImage(self.defaultSpriteSheet)
+    -- Load default sprite sheet (fallback)
+    -- self.defaultSpriteSheet = "assets/Overworld/chicken.png"
+    -- self.spriteSheet = love.graphics.newImage(self.defaultSpriteSheet)
 
     -- Graphics offsets
     self.offsetX = 0
@@ -39,19 +47,13 @@ function OverworldCreature:new(world, x, y, creatureType, level)
     -- Collision state
     self.collisionCooldown = 0  -- Prevent multiple battle initiations in a row
 
-    -- Animation frames setup based on the CSS coordinates
-    -- The CSS shows exact pixel locations for each frame
-    
-
-    local idleFrames = createOverWorldQuads(creatureType.animations.idle)
-    local walkFrames = createOverWorldQuads(creatureType.animations.walk)
-
+    -- Initialize with default chicken animation frames
     self.animation.frames = {
-        idle = idleFrames,
-        walk = walkFrames or idleFrames
+        idle = {},
+        walk = {}
     }
 
-    -- Apply custom appearance based on creature type
+    -- Apply creature-specific appearance based on the creature registry
     self:applyCreatureAppearance()
 
     -- Random starting animation frame
@@ -64,12 +66,14 @@ end
 function OverworldCreature:applyCreatureAppearance()
     -- If we don't have a creature registry in the world, use default chicken
     if not self.world.creatureRegistry then
+        print("Warning: No creature registry found in world, using default chicken appearance")
         return
     end
 
     -- Get creature info from registry
-    local creatureInfo = self.world.creatureRegistry:getCreatureTypeInfo(self.creatureType)
+    local creatureInfo = self.world.creatureRegistry:getCreatureTypeInfo(self.creatureTypeId)
     if not creatureInfo then
+        print("Warning: Creature type '" .. self.creatureTypeId .. "' not found in registry, using default")
         return
     end
 
@@ -80,15 +84,42 @@ function OverworldCreature:applyCreatureAppearance()
 
         if success then
             self.spriteSheet = newSheet
-
-            -- If creature has custom animations, we could replace the chicken animations here
-            -- For now, we'll stick with the chicken animations for all creatures
-            -- This could be expanded in the future
+        else
+            print("Warning: Failed to load sprite sheet for " .. self.creatureTypeId .. ", using default")
         end
     end
 
-    -- You could adjust size, speed, or other properties based on creature type
-    -- For example:
+    -- Try to load animations from creature info
+    if creatureInfo.animations then
+        -- If there's an idle animation
+        if creatureInfo.animations.idle then
+            local idleFrames = createOverWorldQuads(creatureInfo.animations.idle, self.spriteSheet)
+            if idleFrames then
+                self.animation.frames.idle = idleFrames
+
+                -- Set frame time if specified in animation data
+                if creatureInfo.animations.idle.frameTime then
+                    self.animation.frameTime = creatureInfo.animations.idle.frameTime
+                end
+            end
+        end
+
+        -- If there's a walk animation
+        if creatureInfo.animations.walk then
+            local walkFrames = createOverWorldQuads(creatureInfo.animations.walk, self.spriteSheet)
+            if walkFrames then
+                self.animation.frames.walk = walkFrames
+            else
+                -- If no walk animation, use idle frames for walking too
+                self.animation.frames.walk = self.animation.frames.idle
+            end
+        else
+            -- If no walk animation defined, use idle for walking too
+            self.animation.frames.walk = self.animation.frames.idle
+        end
+    end
+
+    -- Adjust properties based on creature type
     if creatureInfo.baseStats then
         -- Adjust speed based on creature's speed stat
         self.speed = 15 + (creatureInfo.baseStats.speed * 2)
@@ -137,13 +168,23 @@ function OverworldCreature:draw()
         frames = self.animation.frames.idle  -- Default to idle if current state has no frames
     end
 
+    -- Safety check for frames
+    if not frames or #frames == 0 then
+        -- Just draw a colored rectangle as fallback
+        love.graphics.setColor(1, 0.5, 0.5, 1)
+        love.graphics.rectangle("fill", self.x - self.width/2, self.y - self.height/2, self.width, self.height)
+        love.graphics.setColor(1, 1, 1, 1)
+        return
+    end
+
     -- Get current frame (with bounds check)
     local frameIndex = math.min(self.animation.frame, #frames)
     local frame = frames[frameIndex]
 
     -- Flip sprite based on direction
+    -- Since sprites are facing WEST by default (left), we flip for RIGHT direction
     local scaleX = 1
-    if self.direction == "left" then
+    if self.direction == "right" then  -- Changed from "left" to "right"
         scaleX = -1
     end
 
@@ -151,8 +192,8 @@ function OverworldCreature:draw()
     love.graphics.draw(
         self.spriteSheet,
         frame.quad,
-        self.x + (frame.offsetX * scaleX),
-        self.y + frame.offsetY,
+        self.x + (frame.offsetX or 0) * scaleX,
+        self.y + (frame.offsetY or 0),
         0,  -- rotation
         scaleX,
         1   -- scaleY
@@ -160,7 +201,7 @@ function OverworldCreature:draw()
 
     -- Draw level indicator for catchable creatures
     love.graphics.setColor(1, 1, 1, 1)
-    love.graphics.print(self.creatureType .. " Lv" .. self.level, self.x - 8, self.y - self.height/2 - 15)
+    love.graphics.print(self.creatureTypeId .. " Lv" .. self.level, self.x - 20, self.y - self.height/2 - 15)
 
     -- Debug visualization (if enabled)
     if self.world.game and self.world.game.showDebugOverlay then
@@ -172,10 +213,6 @@ function OverworldCreature:draw()
             self.width,
             self.height
         )
-
-        -- Draw creature type and level
-        love.graphics.setColor(1, 1, 0, 0.7)
-        love.graphics.print(self.creatureType .. " Lv" .. self.level, self.x - 20, self.y - self.height/2 - 15)
     end
 
     -- Reset color
@@ -189,7 +226,7 @@ function OverworldCreature:createCreatureInstance()
     end
 
     -- Create a creature instance with the same type and level as this NPC
-    return self.world.creatureRegistry:createCreature(self.creatureType, self.level)
+    return self.world.creatureRegistry:createCreature(self.creatureTypeId, self.level)
 end
 
 return OverworldCreature

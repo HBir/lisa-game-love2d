@@ -129,14 +129,23 @@ function CreatureRegistry:registerDefaultCreatures()
                 idle = {
                     sheet = "assets/Overworld/chicken.png",
                     frames = {
-                        { x = 7, y = 16, width = 17, height = 16 },
-                        { x = 39, y = 16, width = 17, height = 16 },
-                        { x = 71, y = 16, width = 17, height = 16 },
-                        { x = 103, y = 16, width = 17, height = 16 }
+                        { x = 0, y = 0, width = 64, height = 64 },
+                        { x = 64, y = 0, width = 64, height = 64 },
+
                     },
                     frameTime = 0.2
                 }, walk = {
-
+                    sheet = "assets/Overworld/chicken.png",
+                    frames = {
+                        { x = 64, y = 0, width = 64, height = 64 },
+                        { x = 64, y = 64, width = 64, height = 64 },
+                        { x = 64, y = 128, width = 64, height = 64 },
+                        { x = 64, y = 192, width = 64, height = 64 },
+                        { x = 64, y = 256, width = 64, height = 64 },
+                        { x = 64, y = 320, width = 64, height = 64 },
+                        { x = 64, y = 384, width = 64, height = 64 },
+                    },
+                    frameTime = 0.2
                 }
             },
             spriteInfo = {
