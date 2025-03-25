@@ -2,7 +2,7 @@
 local Camera = require("camera")
 local World = require("world.world")
 local Player = require("player")
-local OverworldCreature = require("npc.OverworldCreature")  -- Import the new OverworldCreature class
+-- local OverworldCreature = require("npc.OverworldCreature")  -- Import the new OverworldCreature class
 local Inputs = require("Inputs")  -- Import the new inputs module
 local ParticleSystem = require("ParticleSystem")
 local UI = require("UI.UI")  -- Import the new UI module
@@ -21,8 +21,8 @@ function Game:new()
     self.title = "Lisa's Game"
     local _, _, flags = love.window.getMode()
     local window_width, window_height = love.window.getDesktopDimensions(flags.display)
-    self.width = window_width
-    self.height = window_height-100
+    self.width = 800 -- window_width
+    self.height = 600 --window_height-100
 
     -- NPC management
     self.npcs = {}  -- Table to store all NPCs
@@ -87,7 +87,7 @@ function Game:load()
     -- Find the ground level at this X position by moving down until we hit solid ground
     for y = 1, self.world.height do
         if self.world:isSolid(startX, y * self.world.tileSize) then
-            startY = (y - 1) * self.world.tileSize - 20 -- Position player just above the ground
+            startY = (y - 1) * self.world.tileSize - self.world.tileSize -- Position player just above the ground
             break
         end
     end
@@ -145,48 +145,28 @@ function Game:spawnInitialNPCs()
     -- Spawn creatures in the world
     local playerX = self.player.x
 
-    -- Define spawn points with different creature types
-    -- local spawnPoints = {
-    --     {x = playerX - 200, offset = 0, type = "chicken"},
-    --     {x = playerX + 300, offset = 0, type = "chicken"},
-    --     {x = playerX - 400, offset = 0, type = "lilly"}
-    -- }
-
-    -- for _, point in ipairs(spawnPoints) do
-        -- self.creatureRegistry.createCreature(point.type, 5, self.world, point.x, point.y, false)
-
-        -- local groundY = self:findGroundLevel(point.x)
-        -- if groundY then
-        --     -- Create an OverworldCreature with the specified type
-        --     local creature = OverworldCreature:new(
-        --         self.world,
-        --         point.x,
-        --         groundY - 8,
-        --         point.type,
-        --         math.random(1, 3)  -- Random level 1-3
-        --     )
-        --     table.insert(self.npcs, creature)
-        -- end
-    -- end
-
-    -- -- Spawn additional creatures farther away
+    -- Spawn additional creatures farther away
     local creatureTypes = self.creatureRegistry:getCreatureTypes()
     for i = 1, 10 do
         local x = playerX + (math.random() * 2 - 1) * 800  -- Random position +/- 800px from player
         local creatureType = math.random(1, #creatureTypes)
         local groundY = self:findGroundLevel(x)
-        local creature = self.creatureRegistry.createCreature(creatureType, 5, self.world, x, groundY -8, false)
-        table.insert(self.npcs, creature)
 
-        -- if groundY then
-        --     local creature = OverworldCreature:new(
-        --         self.world,
-        --         x,
-        --         groundY - 8,
-        --         creatureType,
-        --         math.random(1, 5)  -- Random level 1-5
-        --     )
-        -- end
+        if groundY then
+            -- Use the updated createCreature method which now returns the overworld entity for wild creatures
+            local creatureNPC = self.creatureRegistry:createCreature(
+                creatureTypes[creatureType], -- Use the actual type string, not the index
+                math.random(1, 5), -- Random level 1-5
+                self.world,
+                x,
+                groundY - 8,
+                false -- Not player owned
+            )
+
+            if creatureNPC then
+                table.insert(self.npcs, creatureNPC)
+            end
+        end
     end
 end
 
@@ -368,11 +348,7 @@ function Game:draw()
     local bgScaleY = self.height / self.backgroundImage:getHeight()
     love.graphics.draw(self.backgroundImage, 0, 0, 0, bgScaleX, bgScaleY)
 
-    -- If in battle, only draw the battle UI
-    if self.battlePaused then
-        self.battleUI:draw()
-        return
-    end
+
 
     -- If showing team overview, draw that and return
     if self.showTeamOverview then
@@ -435,6 +411,12 @@ function Game:draw()
     -- Draw sprite debug view if enabled (should be on top of everything)
     if self.debugPage > 0 then
         self.ui:drawDebugMenu(self.debugPage)
+    end
+
+    -- If in battle, only draw the battle UI
+    if self.battlePaused then
+        self.battleUI:draw()
+        -- return
     end
 end
 

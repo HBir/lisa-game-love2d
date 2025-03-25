@@ -30,10 +30,23 @@ end
 
 -- Create a new instance of a creature by id
 function CreatureRegistry:createCreature(id, level, world, x, y, isPlayerOwned)
-    print("Creating creature: " .. id )
-    local creatureType = self.creatureTypes[id]
+    -- print("Creating creature: " .. tostring(id))
+
+    -- Convert numeric ID to string if needed
+    local creatureId = id
+    if type(id) == "number" then
+        -- Get the ID at this numeric index from the ordered list of creatures
+        local types = self:getCreatureTypes()
+        if id > 0 and id <= #types then
+            creatureId = types[id]
+        else
+            return nil, "Invalid creature index: " .. id
+        end
+    end
+
+    local creatureType = self.creatureTypes[creatureId]
     if not creatureType then
-        return nil, "Creature type not found: " .. id
+        return nil, "Creature type not found: " .. tostring(creatureId)
     end
 
     -- Create the new creature instance
@@ -62,20 +75,20 @@ function CreatureRegistry:createCreature(id, level, world, x, y, isPlayerOwned)
     creature.spriteSheet = self.spriteSheets[defaultSpriteSheet]
 
     -- Default chicken animation frames as fallback (only idle animation needed now)
-    local defaultAnimations = {
-        idle = {
-            frames = {
-                { x = 7, y = 16, width = 17, height = 16 },
-                { x = 39, y = 16, width = 17, height = 16 },
-                { x = 71, y = 16, width = 17, height = 16 },
-                { x = 103, y = 16, width = 17, height = 16 }
-            },
-            frameTime = 0.2
-        }
-    }
+    -- local defaultAnimations = {
+    --     idle = {
+    --         frames = {
+    --             { x = 7, y = 16, width = 17, height = 16 },
+    --             { x = 39, y = 16, width = 17, height = 16 },
+    --             { x = 71, y = 16, width = 17, height = 16 },
+    --             { x = 103, y = 16, width = 17, height = 16 }
+    --         },
+    --         frameTime = 0.2
+    --     }
+    -- }
 
     -- Initialize with default animations
-    creature.animations = defaultAnimations
+    -- creature.animations = defaultAnimations
 
     -- Override with custom sprite if available
     if creatureType.spriteInfo and creatureType.spriteInfo.sheet then
@@ -93,7 +106,7 @@ function CreatureRegistry:createCreature(id, level, world, x, y, isPlayerOwned)
         if creatureType.animations.idle.frames and #creatureType.animations.idle.frames > 0 then
             creature.animations.idle = creatureType.animations.idle
         else
-            print("Warning: Idle animation for creature " .. id .. " has missing frames, using default.")
+            print("Warning: Idle animation for creature " .. creatureId .. " has missing frames, using default.")
         end
     end
 
@@ -108,14 +121,14 @@ function CreatureRegistry:createCreature(id, level, world, x, y, isPlayerOwned)
     end
 
     -- Set creature ID for reference
-    creature.id = id
+    creature.id = creatureId
 
     -- Create overworld representation if world is provided
     if world and x and y then
         -- Create an overworld creature representation
         local OverworldCreature = require("npc.OverworldCreature")
 
-        local overworldEntity = OverworldCreature:new(world, x, y, id, level)
+        local overworldEntity = OverworldCreature:new(world, x, y, creatureType, level)
 
         -- Link the battle creature and overworld entity
         creature.overworldEntity = overworldEntity
@@ -126,6 +139,11 @@ function CreatureRegistry:createCreature(id, level, world, x, y, isPlayerOwned)
             overworldEntity.isPlayerOwned = true
             overworldEntity.followPlayer = true
             overworldEntity.behavior = "follow" -- Override default wander behavior
+        end
+
+        -- Return the overworld entity instead of the creature if not player-owned
+        if not isPlayerOwned then
+            return overworldEntity
         end
     end
 
@@ -153,7 +171,8 @@ function CreatureRegistry:registerDefaultCreatures()
                         { x = 64, y = 0, width = 64, height = 64 },
 
                     },
-                    frameTime = 0.2
+                    frameTime = 0.2,
+                    offsetY = -24
                 }, walk = {
                     sheet = "assets/Overworld/chicken.png",
                     frames = {
@@ -165,7 +184,8 @@ function CreatureRegistry:registerDefaultCreatures()
                         { x = 64, y = 320, width = 64, height = 64 },
                         { x = 64, y = 384, width = 64, height = 64 },
                     },
-                    frameTime = 0.2
+                    frameTime = 0.2,
+                    offsetY = -24
                 }
             },
             spriteInfo = {
@@ -193,6 +213,7 @@ function CreatureRegistry:registerDefaultCreatures()
                         { x = 64, y = 0, width = 64, height = 64 },
                         { x = 128, y = 0, width = 64, height = 64 },
                     },
+                    offsetY = -40,
                     frameTime = 0.2
                 }
             },

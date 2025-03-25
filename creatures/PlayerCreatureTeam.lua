@@ -53,7 +53,7 @@ function PlayerCreatureTeam:addCreature(creature)
         end
 
         -- Create or update overworld entity if not already present
-        -- self:updateCreatureOverworldEntity(creature, #self.creatures)
+        self:updateCreatureOverworldEntity(creature, #self.creatures)
 
         return true
     end

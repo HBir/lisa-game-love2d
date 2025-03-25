@@ -1,6 +1,10 @@
 -- Main entry point for our Terraria-like game
 local Game = require("game")
 
+-- Debugger
+if pcall(require, "lldebugger") then require("lldebugger").start() end
+if pcall(require, "mobdebug") then require("mobdebug").start() end
+
 -- Game instance
 local game = nil
 

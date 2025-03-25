@@ -27,12 +27,13 @@ function createOverWorldQuads(framesSpecArray, spriteSheet)
 end
 
 
-function OverworldCreature:new(world, x, y, creatureTypeId, level)
+function OverworldCreature:new(world, x, y, creatureType, level)
     -- Create a new instance using NPC's constructor
     local self = NPC.new(self, world, x, y, 16, 14)  -- Width 16, height 14
 
     -- Creature properties
-    self.creatureTypeId = creatureTypeId or "chicken"  -- Default to chicken if no type provided
+    self.creatureType = creatureType
+    -- self.creatureTypeId = creatureTypeId or "chicken"  -- Default to chicken if no type provided
     self.level = level or math.random(1, 5)
     self.catchable = true  -- All creatures are catchable by default
 
@@ -50,16 +51,24 @@ function OverworldCreature:new(world, x, y, creatureTypeId, level)
     self.collisionCooldown = 0  -- Prevent multiple battle initiations in a row
 
     -- Initialize with default chicken animation frames
-    self.animation.frames = {
-        idle = {},
-        walk = {}
+
+    self.animation.idle = {
+        sheet = nil,
+        frames = {},
+        frameTime = 0.2
+    }
+
+    self.animation.walk = {
+        sheet = nil,
+        frames = {},
+        frameTime = 0.2
     }
 
     -- Apply creature-specific appearance based on the creature registry
     self:applyCreatureAppearance()
 
     -- Random starting animation frame
-    self.animation.frame = math.random(1, #self.animation.frames.idle)
+    -- self.animation.frame = math.random(1, #self.animation.frames.idle)
 
     return self
 end
@@ -67,53 +76,64 @@ end
 -- Apply creature-specific appearance
 function OverworldCreature:applyCreatureAppearance()
     -- If we don't have a creature registry in the world, use default chicken
-    if not self.world.creatureRegistry then
-        print("Warning: No creature registry found in world, using default chicken appearance")
-        return
-    end
+    -- if not self.world.creatureRegistry then
+    --     print("Warning: No creature registry found in world, using default chicken appearance")
+    --     return
+    -- end
 
-    -- Get creature info from registry
-    local creatureInfo = self.world.creatureRegistry:getCreatureTypeInfo(self.creatureTypeId)
-    if not creatureInfo then
-        print("Warning: Creature type '" .. self.creatureTypeId .. "' not found in registry, using default")
-        return
-    end
+    -- -- Get creature info from registry
+    -- local creatureInfo = self.world.creatureRegistry:getCreatureTypeInfo(self.creatureTypeId)
+    -- if not creatureInfo then
+    --     print("Warning: Creature type '" .. self.creatureTypeId .. "' not found in registry, using default")
+    --     return
+    -- end
 
     -- Check if creature has custom sprite sheet
-    if creatureInfo.spriteInfo and creatureInfo.spriteInfo.sheet then
-        -- Try to load custom sprite sheet
-        local success, newSheet = pcall(love.graphics.newImage, creatureInfo.spriteInfo.sheet)
+    -- if creatureInfo.spriteInfo and creatureInfo.spriteInfo.sheet then
+    --     -- Try to load custom sprite sheet
+    --     local success, newSheet = pcall(love.graphics.newImage, creatureInfo.spriteInfo.sheet)
 
-        if success then
-            self.spriteSheet = newSheet
-        else
-            print("Warning: Failed to load sprite sheet for " .. self.creatureTypeId .. ", using default")
-        end
+    --     if success then
+    --         self.spriteSheet = newSheet
+    --     else
+    --         print("Warning: Failed to load sprite sheet for " .. self.creatureTypeId .. ", using default")
+    --     end
+    -- end
+
+    local creatureInfo = self.creatureType
+    -- If no creatureInfo.spriteInfo, return
+    if not creatureInfo.spriteInfo then
+        return
     end
 
+    local animations = creatureInfo.spriteInfo.animations
     -- Try to load animations from creature info
-    if creatureInfo.animations then
+    if animations then
         -- If there's an idle animation
-        if creatureInfo.animations.idle then
-            local idleFrames = createOverWorldQuads(creatureInfo.animations.idle, self.spriteSheet)
+        if animations.idle then
+            local sheet = love.graphics.newImage(animations.idle.sheet)
+            self.animation.idle.sheet = sheet
+            local idleFrames = createOverWorldQuads(animations.idle, sheet)
             if idleFrames then
-                self.animation.frames.idle = idleFrames
+                self.animation.idle.frames = idleFrames
 
                 -- Set frame time if specified in animation data
-                if creatureInfo.animations.idle.frameTime then
-                    self.animation.frameTime = creatureInfo.animations.idle.frameTime
+                if animations.idle.frameTime then
+                    self.animation.idle.frameTime = animations.idle.frameTime
                 end
             end
         end
 
         -- If there's a walk animation
-        if creatureInfo.animations.walk then
-            local walkFrames = createOverWorldQuads(creatureInfo.animations.walk, self.spriteSheet)
+        if animations.walk then
+            local sheet = love.graphics.newImage(animations.walk.sheet)
+            self.animation.walk.sheet = sheet
+            local walkFrames = createOverWorldQuads(animations.walk, sheet)
             if walkFrames then
-                self.animation.frames.walk = walkFrames
+                self.animation.walk.frames = walkFrames
             else
                 -- If no walk animation, use idle frames for walking too
-                self.animation.frames.walk = self.animation.frames.idle
+                self.animation.walk.frames = self.animation.frames.idle
             end
         else
             -- If no walk animation defined, use idle for walking too
@@ -258,7 +278,8 @@ function OverworldCreature:draw()
     love.graphics.setColor(1, 1, 1, 1)
 
     -- Get the current animation frames
-    local frames = self.animation.frames[self.animation.state]
+    local sheet = self.animation[self.animation.state].sheet
+    local frames = self.animation[self.animation.state].frames
     if not frames then
         frames = self.animation.frames.idle  -- Default to idle if current state has no frames
     end
@@ -285,18 +306,18 @@ function OverworldCreature:draw()
 
     -- Draw the sprite
     love.graphics.draw(
-        self.spriteSheet,
+        sheet,
         frame.quad,
-        self.x + (frame.offsetX or 0) * scaleX,
+        self.x + (frame.offsetX or 0),
         self.y + (frame.offsetY or 0),
         0,  -- rotation
-        scaleX,
-        1   -- scaleY
+        scaleX * 0.5,
+        0.5   -- scaleY
     )
 
     -- Draw level indicator for catchable creatures
     love.graphics.setColor(1, 1, 1, 1)
-    love.graphics.print(self.creatureTypeId .. " Lv" .. self.level, self.x - 20, self.y - self.height/2 - 15)
+    love.graphics.print(self.creatureType.name .. " Lv" .. self.level, self.x - 20, self.y - self.height/2 - 15)
 
     -- Debug visualization (if enabled)
     if self.world.game and self.world.game.showDebugOverlay then
